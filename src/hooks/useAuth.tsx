@@ -61,16 +61,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (email: string, password: string, fullName: string, selectedRole?: AppRole) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, role: selectedRole || 'entrepreneur' },
         emailRedirectTo: window.location.origin,
       },
     });
     if (error) throw error;
+    // With auto-confirm, user is immediately authenticated — set role now
+    if (data.user) {
+      const role = selectedRole || 'entrepreneur';
+      await supabase.from('user_roles').upsert(
+        { user_id: data.user.id, role },
+        { onConflict: 'user_id,role' }
+      );
+      setRoleState(role);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
