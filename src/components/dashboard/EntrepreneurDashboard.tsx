@@ -140,7 +140,43 @@ export default function EntrepreneurDashboard() {
     }
   };
 
-  const createEnterprise = async () => {
+  const handleGenerateModule = async (moduleCode: string) => {
+    if (!enterprise) return;
+    setGeneratingModule(moduleCode);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non authentifié");
+
+      const functionName = `generate-${moduleCode}`;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ enterprise_id: enterprise.id }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Erreur de génération');
+      }
+
+      const result = await response.json();
+      toast.success(`${moduleCode.toUpperCase()} généré ! Score: ${result.score}/100`);
+      setSelectedModule(moduleCode);
+      await fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur de génération');
+    } finally {
+      setGeneratingModule(null);
+    }
+  };
+
+
     if (!user || !newName.trim()) return;
     setCreating(true);
     try {
