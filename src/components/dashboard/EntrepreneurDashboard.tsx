@@ -33,14 +33,14 @@ const MODULE_CONFIG = [
 ];
 
 const DELIVERABLE_CONFIG = [
-  { type: 'bmc_analysis', label: 'BMC Analysé', ext: '.html', icon: '📊', color: 'text-info' },
-  { type: 'sic_analysis', label: 'SIC Analysé', ext: '.html', icon: '🌍', color: 'text-info' },
-  { type: 'inputs_data', label: 'Données Financières', ext: '.html', icon: '💰', color: 'text-primary' },
-  { type: 'framework_data', label: 'Framework Financier', ext: '.html', icon: '📈', color: 'text-success' },
-  { type: 'diagnostic_data', label: 'Diagnostic Expert', ext: '.html', icon: '🩺', color: 'text-primary' },
-  { type: 'plan_ovo', label: 'Plan OVO', ext: '.html', icon: '📋', color: 'text-success' },
-  { type: 'business_plan', label: 'Business Plan', ext: '.html', icon: '📄', color: 'text-info' },
-  { type: 'odd_analysis', label: 'Due Diligence ODD', ext: '.html', icon: '✅', color: 'text-success' },
+  { type: 'bmc_analysis', label: 'BMC Analysé', formats: ['html', 'json'], icon: '📊' },
+  { type: 'sic_analysis', label: 'Social Impact Canvas', formats: ['html', 'json'], icon: '🌍' },
+  { type: 'inputs_data', label: 'Données Financières', formats: ['html', 'xlsx', 'csv'], icon: '💰' },
+  { type: 'framework_data', label: 'Framework Financier', formats: ['html', 'xlsx'], icon: '📈' },
+  { type: 'diagnostic_data', label: 'Diagnostic Expert', formats: ['html', 'json'], icon: '🩺' },
+  { type: 'plan_ovo', label: 'Plan Financier OVO', formats: ['html', 'xlsx'], icon: '📋' },
+  { type: 'business_plan', label: 'Business Plan', formats: ['html', 'json'], icon: '📄' },
+  { type: 'odd_analysis', label: 'Due Diligence ODD', formats: ['html', 'json'], icon: '✅' },
 ];
 
 export default function EntrepreneurDashboard() {
@@ -599,34 +599,38 @@ export default function EntrepreneurDashboard() {
             {DELIVERABLE_CONFIG.map(dc => {
               const deliv = getDeliverable(dc.type);
               const isReady = !!deliv;
-              const downloadFormat = dc.ext === '.xlsx' ? 'csv' : dc.ext === '.docx' ? 'html' : 'html';
               return (
                 <div
                   key={dc.type}
-                  onClick={() => isReady && handleDownload(dc.type, downloadFormat)}
-                  className={`flex items-center justify-between p-3 rounded-lg border bg-card transition-colors ${
-                    isReady ? 'hover:bg-muted/50 cursor-pointer' : 'opacity-60'
-                  }`}
+                  className={`p-3 rounded-lg border bg-card ${!isReady ? 'opacity-60' : ''}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{dc.icon}</span>
-                    <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{dc.icon}</span>
                       <p className="text-xs font-medium">{dc.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{dc.ext}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
                     {isReady ? (
-                      <>
-                        <Badge variant="default" className="text-[10px] bg-success/10 text-success border-success/20">
-                          {deliv.score ? `${deliv.score}/100` : 'Prêt'}
-                        </Badge>
-                        <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                      </>
+                      <Badge variant="default" className="text-[10px] bg-success/10 text-success border-success/20">
+                        {deliv.score ? `${deliv.score}/100` : 'Prêt'}
+                      </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px]">En attente</Badge>
                     )}
                   </div>
+                  {isReady && (
+                    <div className="flex gap-1 mt-1">
+                      {dc.formats.map(fmt => (
+                        <button
+                          key={fmt}
+                          onClick={() => handleDownload(dc.type, fmt)}
+                          className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-muted hover:bg-muted-foreground/10 transition-colors text-muted-foreground"
+                        >
+                          <Download className="h-2.5 w-2.5" />
+                          {fmt.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
