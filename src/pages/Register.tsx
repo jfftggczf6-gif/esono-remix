@@ -40,10 +40,9 @@ export default function Register() {
     }
     setIsLoading(true);
     try {
-      await signUp(email, password, fullName);
-      // After signup, we set role (will be done after login since auto-confirm is on)
+      await signUp(email, password, fullName, selectedRole);
       toast.success('Compte créé avec succès !');
-      navigate('/login');
+      navigate('/dashboard');
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de l'inscription");
     } finally {
