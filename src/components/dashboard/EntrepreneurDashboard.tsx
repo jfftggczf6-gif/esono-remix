@@ -192,7 +192,15 @@ export default function EntrepreneurDashboard() {
     try {
       const { data, error } = await supabase
         .from('enterprises')
-        .insert({ user_id: user.id, name: newName.trim(), sector: newSector.trim() || null })
+        .insert({
+          user_id: user.id,
+          name: newName.trim(),
+          sector: newSector.trim() || null,
+          country: newCountry.trim() || "Côte d'Ivoire",
+          city: newCity.trim() || null,
+          legal_form: newLegalForm.trim() || null,
+          description: newDescription.trim() || null,
+        })
         .select().single();
       if (error) throw error;
 
