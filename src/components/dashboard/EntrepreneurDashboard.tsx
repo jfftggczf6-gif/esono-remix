@@ -183,6 +183,7 @@ export default function EntrepreneurDashboard() {
                   icon={mod.icon}
                   status={data.status}
                   progress={data.progress}
+                  onClick={() => navigate(`/module/${mod.code}`)}
                 />
               );
             })}
