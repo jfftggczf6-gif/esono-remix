@@ -55,6 +55,8 @@ export default function EntrepreneurDashboard() {
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [generatingModule, setGeneratingModule] = useState<string | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string>('bmc');
   const docInputRef = useRef<HTMLInputElement>(null);
   const finInputRef = useRef<HTMLInputElement>(null);
 
