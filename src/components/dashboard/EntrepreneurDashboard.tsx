@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from './DashboardLayout';
@@ -27,6 +28,7 @@ const MODULE_CONFIG = [
 
 export default function EntrepreneurDashboard() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [enterprise, setEnterprise] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -182,6 +184,7 @@ export default function EntrepreneurDashboard() {
                   icon={mod.icon}
                   status={data.status}
                   progress={data.progress}
+                  onClick={() => navigate(`/module/${mod.code}`)}
                 />
               );
             })}
