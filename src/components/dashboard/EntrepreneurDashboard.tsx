@@ -28,6 +28,7 @@ const MODULE_CONFIG = [
 
 export default function EntrepreneurDashboard() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [enterprise, setEnterprise] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
