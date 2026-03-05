@@ -182,6 +182,37 @@ export default function EntrepreneurDashboard() {
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
+  const handleDownload = async (type: string, format: string) => {
+    if (!enterprise) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non authentifié");
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-deliverable?type=${type}&enterprise_id=${enterprise.id}&format=${format}`;
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Erreur');
+      }
+
+      const blob = await response.blob();
+      const ext = format === 'csv' ? '.csv' : format === 'json' ? '.json' : '.html';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${enterprise.name.replace(/[^a-zA-Z0-9]/g, '_')}_${type}${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      toast.success('Fichier téléchargé !');
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur de téléchargement');
+    }
+  };
+
   // No enterprise yet
   if (!enterprise) {
     return (
