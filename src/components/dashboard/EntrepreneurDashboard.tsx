@@ -61,6 +61,8 @@ export default function EntrepreneurDashboard() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generatingModule, setGeneratingModule] = useState<string | null>(null);
+  const [generatingOvoPlan, setGeneratingOvoPlan] = useState(false);
+  const [ovoDownloadUrl, setOvoDownloadUrl] = useState<string | null>(null);
   const [selectedModule, setSelectedModule] = useState<string>('business_plan');
   const docInputRef = useRef<HTMLInputElement>(null);
   const finInputRef = useRef<HTMLInputElement>(null);
