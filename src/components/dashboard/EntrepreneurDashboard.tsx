@@ -348,8 +348,30 @@ export default function EntrepreneurDashboard() {
         return [];
       };
 
-      const products = extractItems('products');
+      let products = extractItems('products');
       const services = extractItems('services');
+
+      // Enrich products with CA/marge from framework analyse_marge
+      const margeActivites = (frameworkData as any)?.analyse_marge?.activites || [];
+      if (margeActivites.length > 0) {
+        products = products.map((p) => {
+          const match = margeActivites.find((a: any) =>
+            (a.nom || a.name || '').toLowerCase().includes((p.name || '').toLowerCase().substring(0, 8)) ||
+            (p.name || '').toLowerCase().includes((a.nom || a.name || '').toLowerCase().substring(0, 8))
+          );
+          if (match) {
+            return { ...p, ca: match.ca || 0, marge_pct: match.ca > 0 ? Math.round(((match.marge_brute || 0) / match.ca) * 100) : 60 };
+          }
+          return p;
+        });
+      }
+
+      // Add prix_moyen from BMC
+      const bmcFluxRevenus = bmcData?.canvas?.flux_revenus || {};
+      const prixMoyen = bmcFluxRevenus?.prix_moyen || bmcFluxRevenus?.prix_unitaire || 0;
+      if (prixMoyen > 0 && products.length > 0) {
+        products = products.map(p => ({ ...p, price: p.price || prixMoyen }));
+      }
 
       // Extract financial KPIs
       const cr = inputsData?.compte_resultat || {};
