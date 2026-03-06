@@ -254,12 +254,20 @@ function sicHTML(data: any, ent: string): string {
   const changements = data.changements || {};
   const recos = data.recommandations || [];
   const oddBloc = canvas.odd_cibles || {};
+  const swot = data.swot || {};
+  const partiesPrenantes = data.parties_prenantes || [];
+  const oddDetail = data.odd_detail || oddBloc.odds || [];
+  const alignement = data.alignement_modele || {};
+  const evolution = data.evolution_score || [];
+  const maturite = data.niveau_maturite || '';
   const palierColor = score >= 86 ? '#16a34a' : score >= 71 ? '#22c55e' : score >= 51 ? '#eab308' : score >= 31 ? '#f97316' : '#ef4444';
+  const scColor = (s:number) => s>=80?'#22c55e':s>=50?'#eab308':'#ef4444';
 
   let body = '';
 
   // Score Hero
   body += `<div style="background:linear-gradient(135deg,#1a2744,#2d4a7c,#1a2744);padding:40px;border-radius:16px;color:#fff;margin-bottom:24px">
+<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:rgba(255,255,255,.4);margin-bottom:8px">Social Impact Canvas</p>
 <div style="font-size:48px;font-weight:900;line-height:1">${score}<span style="font-size:24px;opacity:.4">/100</span></div>
 <div style="width:100%;height:12px;background:rgba(255,255,255,.1);border-radius:6px;margin:12px 0;overflow:hidden"><div style="width:${score}%;height:100%;border-radius:6px;background:${palierColor}"></div></div>
 <div style="font-size:18px;font-weight:600;color:${palierColor}">${data.label || data.palier || ''}</div>
@@ -272,7 +280,7 @@ ${data.synthese_impact ? `<p style="font-size:14px;color:rgba(255,255,255,.6);fo
   for (const key of dimOrder) {
     const dim = dims[key]; if (!dim) continue;
     const s = dim.score || 0;
-    const c = s >= 80 ? '#22c55e' : s >= 50 ? '#eab308' : '#ef4444';
+    const c = scColor(s);
     body += `<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
 <span style="font-weight:600;font-size:13px;min-width:200px">${dim.label || key}</span>
 <span style="font-weight:700;font-size:14px;color:${c}">${s}%</span></div>
@@ -284,8 +292,8 @@ ${dim.commentaire ? `<p style="font-size:12px;color:#64748b;margin-top:6px">${di
   // Chiffres clés
   body += `<div class="grid-4" style="margin-bottom:24px">`;
   const kpis = [
-    { val: chiffres.beneficiaires_directs?.nombre, label: `Bénéf. directs${chiffres.beneficiaires_directs?.horizon ? ` (${chiffres.beneficiaires_directs.horizon})` : ''}` },
-    { val: chiffres.beneficiaires_indirects?.nombre, label: 'Bénéf. indirects' },
+    { val: chiffres.beneficiaires_directs?.nombre, label: `Bénéficiaires directs${chiffres.beneficiaires_directs?.horizon ? ` (${chiffres.beneficiaires_directs.horizon})` : ''}` },
+    { val: chiffres.beneficiaires_indirects?.nombre, label: 'Bénéficiaires indirects' },
     { val: chiffres.impact_total_projete?.nombre, label: 'Impact total projeté' },
     { val: chiffres.odd_adresses?.nombre, label: 'ODD adressés' },
   ];
@@ -296,14 +304,13 @@ ${dim.commentaire ? `<p style="font-size:12px;color:#64748b;margin-top:6px">${di
   }
   body += `</div>`;
 
-  // Canvas (6 blocs)
+  // Canvas grid
   const canvasBlock = (icon: string, title: string, points: string[]) =>
     `<div style="background:#fff;padding:16px;min-height:180px;border:1px solid #e2e8f0">
 <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#1a2744;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px">${icon} ${title}</div>
 ${(points||[]).map(p => `<div style="font-size:11px;color:#475569;margin-bottom:3px">• ${p}</div>`).join('')}</div>`;
 
-  body += `<div class="card" style="padding:0;overflow:hidden"><h2 style="padding:20px;margin:0;border:0">SOCIAL IMPACT CANVAS</h2>`;
-  // Row 1: 4 cols
+  body += `<div class="card" style="padding:0;overflow:hidden"><h2 style="padding:20px;margin:0;border:0">SOCIAL IMPACT CANVAS — VUE SYNTHÉTIQUE</h2>`;
   body += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e2e8f0">
 ${canvasBlock('🔴', canvas.probleme_social?.titre || 'PROBLÈME SOCIAL', canvas.probleme_social?.points || [])}
 ${canvasBlock('🟢', canvas.transformation_visee?.titre || 'TRANSFORMATION VISÉE', canvas.transformation_visee?.points || [])}
@@ -316,7 +323,6 @@ ${(oddBloc.odds||[]).map((o:any) => `<div style="width:40px;height:40px;border-r
 ${(oddBloc.odds||[]).map((o:any) => `<div style="font-size:10px;color:#64748b">${o.nom}</div>`).join('')}
 </div></div>`;
 
-  // Row 2: 2 cols
   body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#e2e8f0;border-top:1px solid #e2e8f0">
 <div style="background:#fff;padding:16px;min-height:180px">
 <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#1a2744;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px">📏 INDICATEURS & MESURE</div>
@@ -357,14 +363,92 @@ ${chKeys.map((k,i) => `<div style="border:1px solid #e2e8f0;border-left:4px soli
 <p style="font-size:13px;color:#64748b;line-height:1.5">${changements[k]||''}</p></div>`).join('')}</div>`;
   }
 
+  // ODD Detail table
+  if (oddDetail.length) {
+    body += `<div class="card"><h2>🌍 CONTRIBUTION AUX ODD — DÉTAIL</h2>
+<table><tr><th style="width:60px">ODD</th><th>Intitulé</th><th>Contribution concrète</th><th style="width:90px">Alignement</th></tr>
+${oddDetail.map((o:any,i:number) => `<tr${i%2?'':' style="background:#f8fafc"'}>
+<td><div style="width:32px;height:32px;border-radius:4px;background:${o.couleur||'#666'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px">${o.numero}</div></td>
+<td style="font-weight:500">${o.nom||''}</td>
+<td style="color:#64748b">${o.justification||o.contribution||''}</td>
+<td><span class="badge badge-${o.alignement==='fort'?'green':o.alignement==='faible'?'red':'yellow'}" style="text-transform:capitalize">${o.alignement||'moyen'}</span></td>
+</tr>`).join('')}</table></div>`;
+  }
+
+  // Parties prenantes
+  if (partiesPrenantes.length) {
+    body += `<div class="card"><h2>🤝 PARTIES PRENANTES CLÉS</h2>
+<table><tr><th>Partie prenante</th><th>Rôle</th><th style="width:100px">Implication</th></tr>
+${partiesPrenantes.map((pp:any,i:number) => `<tr${i%2?'':' style="background:#f8fafc"'}>
+<td style="font-weight:500">${pp.nom||pp.type||''}</td><td style="color:#64748b">${pp.role||''}</td>
+<td><span class="badge badge-${pp.implication==='Élevé'||pp.implication==='élevé'?'green':'yellow'}">${pp.implication||'—'}</span></td>
+</tr>`).join('')}</table></div>`;
+  }
+
+  // Alignement modèle
+  if (alignement.commentaire) {
+    body += `<div class="card"><h2>🔗 ALIGNEMENT MODÈLE ÉCONOMIQUE / IMPACT</h2>
+<div class="grid-4" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+<div class="metric"><div class="lbl">Position de l'impact</div><div class="val" style="font-size:14px">${
+  alignement.impact_position==='coeur_du_modele'?'🎯 Cœur du modèle':alignement.impact_position==='effet_secondaire'?'↗️ Effet secondaire':'📎 Activité annexe'
+}</div></div>
+<div class="metric"><div class="lbl">Corrélation croissance</div><div class="val" style="font-size:14px">${
+  alignement.correlation_croissance==='augmente'?'📈 Augmente':alignement.correlation_croissance==='stagne'?'➡️ Stagne':'📉 Diminue'
+}</div></div>
+<div class="metric"><div class="lbl">Conflit rentabilité</div><div class="val" style="font-size:14px;color:${
+  alignement.conflit_rentabilite==='faible'?'#22c55e':alignement.conflit_rentabilite==='fort'?'#ef4444':'#eab308'
+}">${alignement.conflit_rentabilite||'—'}</div></div>
+</div>
+<p style="font-size:13px;color:#64748b;line-height:1.5">${alignement.commentaire}</p></div>`;
+  }
+
+  // SWOT
+  if (swot.forces || swot.faiblesses || swot.opportunites || swot.menaces) {
+    body += `<div class="card"><h2>🧭 DIAGNOSTIC SWOT — IMPACT SOCIAL</h2><div class="swot-grid">
+<div class="swot-box swot-s"><h4>FORCES</h4><ul>${(swot.forces||[]).map((s:string)=>`<li>${s}</li>`).join('')}</ul></div>
+<div class="swot-box swot-w"><h4>FAIBLESSES</h4><ul>${(swot.faiblesses||[]).map((s:string)=>`<li>${s}</li>`).join('')}</ul></div>
+<div class="swot-box swot-o"><h4>OPPORTUNITÉS</h4><ul>${(swot.opportunites||[]).map((s:string)=>`<li>${s}</li>`).join('')}</ul></div>
+<div class="swot-box swot-t"><h4>MENACES</h4><ul>${(swot.menaces||[]).map((s:string)=>`<li>${s}</li>`).join('')}</ul></div>
+</div></div>`;
+  }
+
   // Recommandations
   if (recos.length) {
-    body += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
+    body += `<div class="card"><h2>🎯 RECOMMANDATIONS POUR RENFORCER L'IMPACT</h2>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
 ${recos.slice(0,3).map((r:any,i:number) => `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;background:#fff;position:relative">
 <div style="position:absolute;top:-8px;left:-8px;width:28px;height:28px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${r.priorite||i+1}</div>
 <h3 style="font-size:14px;font-weight:700;margin-top:8px;margin-bottom:8px">${r.titre}</h3>
 <p style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:12px">${r.detail}</p>
-${r.impact_score?`<span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534">${r.impact_score}</span>`:''}</div>`).join('')}</div>`;
+${r.impact_score?`<span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534">${r.impact_score}</span>`:''}</div>`).join('')}
+</div></div>`;
+  }
+
+  // Evolution score
+  if (evolution.length) {
+    body += `<div class="card"><h2>📈 ÉVOLUTION POTENTIELLE DU SCORE</h2>
+<table><tr><th>Critère</th><th>Score actuel</th><th>Score après</th><th>Action clé</th></tr>
+${evolution.map((e:any,i:number) => `<tr${i%2?'':' style="background:#f8fafc"'}>
+<td style="font-weight:500">${e.critere}</td>
+<td><strong style="color:${scColor(e.score_actuel||0)}">${e.score_actuel}/100</strong></td>
+<td><strong style="color:${scColor(e.score_apres||0)}">${e.score_apres}/100</strong></td>
+<td style="color:#64748b">${e.action}</td></tr>`).join('')}</table></div>`;
+  }
+
+  // Maturité
+  if (maturite) {
+    const levels = ['idee','test_pilote','deploye','mesure','scale'];
+    const labels = ['Idée','Test/Pilote','Déployé','Mesuré','Scalé'];
+    const matColors = ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
+    const idx = levels.indexOf(maturite);
+    body += `<div class="card"><h2>🎯 NIVEAU DE MATURITÉ DE L'IMPACT</h2>
+<div style="display:flex;gap:4px;margin-bottom:12px">
+${levels.map((l,i) => `<div style="flex:1;text-align:center">
+<div style="height:12px;border-radius:6px;background:${i<=idx?matColors[i]:'#e2e8f0'}"></div>
+<p style="font-size:10px;margin-top:4px;${i===idx?'font-weight:700;color:#1e293b':'color:#94a3b8'}">${labels[i]}</p>
+${i===idx?'<p style="font-size:9px;color:#3b82f6;font-weight:600">← VOUS ÊTES ICI</p>':''}
+</div>`).join('')}
+</div></div>`;
   }
 
   return htmlShell('Social Impact Canvas', score, body, ent);
