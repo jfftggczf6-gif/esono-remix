@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import FrameworkViewerComponent from './FrameworkViewer';
+import PlanOvoViewerComponent from './PlanOvoViewer';
 
 interface DeliverableViewerProps {
   moduleCode: string;
@@ -17,7 +18,7 @@ export default function DeliverableViewer({ moduleCode, data }: DeliverableViewe
     case 'inputs': return <InputsViewer data={data} />;
     case 'framework': return <FrameworkViewerComponent data={data} />;
     case 'diagnostic': return <DiagnosticViewer data={data} />;
-    case 'plan_ovo': return <PlanOvoViewer data={data} />;
+    case 'plan_ovo': return <PlanOvoViewerComponent data={data} />;
     case 'business_plan': return <BusinessPlanViewer data={data} />;
     case 'odd': return <OddViewer data={data} />;
     default: return <GenericJsonViewer data={data} />;
@@ -566,77 +567,6 @@ function DiagnosticViewer({ data }: { data: any }) {
       )}
 
       <p className="text-sm font-medium text-primary italic">{data.verdict}</p>
-    </div>
-  );
-}
-
-// ===== PLAN OVO VIEWER =====
-function PlanOvoViewer({ data }: { data: any }) {
-  const scenarios = data.scenarios || {};
-  const formatAmount = (n: number) => n ? new Intl.NumberFormat('fr-FR').format(n) : '—';
-
-  return (
-    <div className="space-y-4">
-      <ScoreHeader title="Plan Financier OVO" score={data.score} />
-
-      {data.hypotheses_base && (
-        <Card><CardContent className="py-3">
-          <h4 className="text-xs font-bold text-primary mb-1">📐 Hypothèses de base</h4>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            {Object.entries(data.hypotheses_base).map(([k, v]) => (
-              <div key={k} className="flex justify-between"><span className="text-muted-foreground capitalize">{k.replace(/_/g, ' ')}</span><span className="font-medium">{v as string}</span></div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
-
-      {['optimiste', 'realiste', 'pessimiste'].map(scenario => {
-        const s = scenarios[scenario];
-        if (!s) return null;
-        const colors: Record<string, string> = { optimiste: 'text-success', realiste: 'text-primary', pessimiste: 'text-warning' };
-        return (
-          <Card key={scenario}><CardContent className="py-4">
-            <h4 className={`text-xs font-bold ${colors[scenario]} mb-2 uppercase`}>
-              {scenario === 'optimiste' ? '🚀' : scenario === 'realiste' ? '📊' : '⚠️'} Scénario {scenario}
-            </h4>
-            <p className="text-[11px] text-muted-foreground mb-2">{s.hypotheses}</p>
-            <p className="text-[11px] mb-2">Croissance: <span className="font-bold">{s.taux_croissance_ca}</span></p>
-            {s.projections?.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <thead><tr className="border-b">
-                    <th className="text-left py-1">Année</th><th className="text-right py-1">CA</th><th className="text-right py-1">Résultat</th><th className="text-right py-1">Trésorerie</th>
-                  </tr></thead>
-                  <tbody>
-                    {s.projections.map((p: any, i: number) => (
-                      <tr key={i} className="border-b border-border/30">
-                        <td className="py-1 font-medium">{p.annee}</td>
-                        <td className="text-right">{formatAmount(p.ca)}</td>
-                        <td className="text-right">{formatAmount(p.resultat_net)}</td>
-                        <td className="text-right">{formatAmount(p.tresorerie)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent></Card>
-        );
-      })}
-
-      {data.indicateurs_cles && (
-        <Card><CardContent className="py-3">
-          <h4 className="text-xs font-bold text-primary mb-2">📈 Indicateurs clés</h4>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            {Object.entries(data.indicateurs_cles).map(([k, v]) => (
-              <div key={k} className="p-2 rounded bg-muted/50">
-                <span className="text-muted-foreground uppercase text-[10px]">{k}</span>
-                <p className="font-bold">{v as string}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
     </div>
   );
 }
