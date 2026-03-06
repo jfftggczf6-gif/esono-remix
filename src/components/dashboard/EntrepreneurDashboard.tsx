@@ -113,11 +113,11 @@ export default function EntrepreneurDashboard() {
   const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number; name: string } | null>(null);
 
   const PIPELINE = [
-    { name: "Diagnostic", fn: "generate-diagnostic", type: "diagnostic_data" },
     { name: "BMC", fn: "generate-bmc", type: "bmc_analysis" },
     { name: "SIC", fn: "generate-sic", type: "sic_analysis" },
     { name: "Inputs", fn: "generate-inputs", type: "inputs_data" },
     { name: "Framework", fn: "generate-framework", type: "framework_data" },
+    { name: "Diagnostic", fn: "generate-diagnostic", type: "diagnostic_data" },
     { name: "Plan OVO", fn: "generate-plan-ovo", type: "plan_ovo" },
     { name: "Business Plan", fn: "generate-business-plan", type: "business_plan" },
     { name: "ODD", fn: "generate-odd", type: "odd_analysis" },
