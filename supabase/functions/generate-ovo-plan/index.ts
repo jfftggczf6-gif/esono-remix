@@ -135,15 +135,39 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const data: EntrepreneurData = await req.json();
+    const data: EntrepreneurData & { enterprise_id?: string; request_id?: string } = await req.json();
 
     // ── Validation: sécuriser products/services ───────────────────────
     if (!Array.isArray(data.products)) data.products = [];
     if (!Array.isArray(data.services)) data.services = [];
 
-    console.log(`[generate-ovo-plan] START — user: ${authUser.id}, company: ${data.company}, products: ${data.products.length}, services: ${data.services.length}`);
+    const enterpriseId = data.enterprise_id;
+    const requestId = data.request_id || crypto.randomUUID();
+
+    console.log(`[generate-ovo-plan] START — user: ${authUser.id}, company: ${data.company}, enterprise: ${enterpriseId}, request: ${requestId}`);
+    console.log(`[generate-ovo-plan] products: ${data.products.length}, services: ${data.services.length}`);
     console.log(`[generate-ovo-plan] Extra data: inputs=${!!data.inputs_data}, framework=${!!data.framework_data}, sic=${!!data.sic_data}, diagnostic=${!!data.diagnostic_data}, prev_plan=${!!data.plan_ovo_data}`);
 
+    // ── Init Supabase service client ──────────────────────────────────
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ── Track status in deliverables (processing) ─────────────────────
+    if (enterpriseId) {
+      await supabase.from("deliverables").upsert(
+        {
+          enterprise_id: enterpriseId,
+          type: "plan_ovo_excel",
+          ai_generated: true,
+          data: { status: "processing", request_id: requestId, started_at: new Date().toISOString() },
+        },
+        { onConflict: "enterprise_id,type" }
+      );
+    }
+
+    try {
     // ── Étape 1 : Appel Claude API ─────────────────────────────────────
     console.log("[generate-ovo-plan] Calling Claude API...");
     const financialJson = await callClaudeAPI(data);
@@ -160,10 +184,6 @@ Deno.serve(async (req: Request) => {
 
     // ── Étape 2 : Télécharger le template ─────────────────────────────
     console.log("[generate-ovo-plan] Downloading template...");
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     const { data: templateBlob, error: dlError } = await supabase.storage
       .from(TEMPLATE_BUCKET)
@@ -186,14 +206,16 @@ Deno.serve(async (req: Request) => {
 
     // ── Étape 5 : Upload vers Supabase Storage ─────────────────────────
     const timestamp = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
-    const outputFileName = `PlanFinancier_${sanitize(data.company)}_OVO_${timestamp}.xlsm`;
+    const rnd = Math.random().toString(36).substring(2, 8);
+    const outputFileName = `PlanFinancier_${sanitize(data.company)}_OVO_${timestamp}_${rnd}.xlsm`;
 
     console.log(`[generate-ovo-plan] Uploading ${outputFileName}...`);
     const { error: uploadError } = await supabase.storage
       .from(OUTPUT_BUCKET)
       .upload(outputFileName, filledBuffer, {
         contentType: "application/vnd.ms-excel.sheet.macroEnabled.12",
-        upsert: true,
+        upsert: false,
+        cacheControl: "no-store",
       });
 
     if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
@@ -202,18 +224,55 @@ Deno.serve(async (req: Request) => {
       .from(OUTPUT_BUCKET)
       .createSignedUrl(outputFileName, 86400); // 24 heures
 
+    const downloadUrl = urlData?.signedUrl || null;
+
+    // ── Track status in deliverables (completed) ──────────────────────
+    if (enterpriseId) {
+      await supabase.from("deliverables").upsert(
+        {
+          enterprise_id: enterpriseId,
+          type: "plan_ovo_excel",
+          ai_generated: true,
+          file_url: downloadUrl,
+          data: {
+            status: "completed",
+            request_id: requestId,
+            file_name: outputFileName,
+            generated_at: new Date().toISOString(),
+          },
+        },
+        { onConflict: "enterprise_id,type" }
+      );
+    }
+
     console.log("[generate-ovo-plan] SUCCESS");
 
     return new Response(
       JSON.stringify({
         success: true,
         file_name: outputFileName,
-        download_url: urlData?.signedUrl,
+        download_url: downloadUrl,
         cells_written: cellWrites.length,
         financial_summary: extractSummary(financialJson),
       }),
       { headers: { ...corsHeaders(), "Content-Type": "application/json" } }
     );
+
+    } catch (innerErr) {
+      // ── Track status in deliverables (failed) ─────────────────────────
+      if (enterpriseId) {
+        await supabase.from("deliverables").upsert(
+          {
+            enterprise_id: enterpriseId,
+            type: "plan_ovo_excel",
+            ai_generated: true,
+            data: { status: "failed", request_id: requestId, error: String(innerErr), failed_at: new Date().toISOString() },
+          },
+          { onConflict: "enterprise_id,type" }
+        ).catch(() => {}); // best-effort
+      }
+      throw innerErr; // re-throw to outer catch
+    }
 
   } catch (err) {
     console.error("[generate-ovo-plan] ERROR:", err);
