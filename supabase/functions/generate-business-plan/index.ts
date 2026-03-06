@@ -88,9 +88,10 @@ serve(async (req) => {
       plan_ovo: ctx.deliverableMap["plan_ovo"] || {},
     };
 
-    const data = await callAI(SYSTEM_PROMPT, userPrompt(
+    const rawData = await callAI(SYSTEM_PROMPT, userPrompt(
       ent.name, ent.sector || "", ent.country || "", ctx.documentContent, allData
     ));
+    const data = normalizeBusinessPlan(rawData);
 
     await saveDeliverable(ctx.supabase, ctx.enterprise_id, "business_plan", data, "business_plan");
 
