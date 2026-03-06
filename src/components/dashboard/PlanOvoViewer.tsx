@@ -144,11 +144,12 @@ export default function PlanOvoViewer({ data }: { data: any }) {
     const totalInvestment = Math.max(fundingNeed, capexTotal) || 1;
     // Debt service
     const loans = data.loans || {};
-    const annualDebtService = Object.values(loans).reduce((s: number, l: any) => {
-      const amount = Number((l as any)?.amount) || 0;
-      const term = Number((l as any)?.term_years) || 1;
-      const rate = Number((l as any)?.rate) || 0;
-      return s + (amount > 0 ? amount * (rate + 1 / term) / 1 : 0); // simplified annuity
+    const annualDebtService = Object.values(loans).reduce((s: number, l: unknown) => {
+      const loan = l as { amount?: number; term_years?: number; rate?: number };
+      const amount = Number(loan?.amount) || 0;
+      const term = Number(loan?.term_years) || 1;
+      const rate = Number(loan?.rate) || 0;
+      return s + (amount > 0 ? amount * (rate + 1 / term) : 0);
     }, 0);
 
     const discountRate = ai?.discount_rate || 0.12;
