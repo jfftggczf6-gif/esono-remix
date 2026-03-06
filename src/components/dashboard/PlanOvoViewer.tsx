@@ -144,13 +144,14 @@ export default function PlanOvoViewer({ data }: { data: any }) {
     const totalInvestment = Math.max(fundingNeed, capexTotal) || 1;
     // Debt service
     const loans = data.loans || {};
-    const annualDebtService = Object.values(loans).reduce((s: number, l: unknown) => {
+    let annualDebtService = 0;
+    for (const l of Object.values(loans)) {
       const loan = l as { amount?: number; term_years?: number; rate?: number };
       const amount = Number(loan?.amount) || 0;
       const term = Number(loan?.term_years) || 1;
       const rate = Number(loan?.rate) || 0;
-      return s + (amount > 0 ? amount * (rate + 1 / term) : 0);
-    }, 0);
+      if (amount > 0) annualDebtService += amount * (rate + 1 / term);
+    }
 
     const discountRate = ai?.discount_rate || 0.12;
     const nYears = 5;
