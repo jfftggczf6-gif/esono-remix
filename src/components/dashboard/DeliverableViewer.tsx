@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import FrameworkViewerComponent from './FrameworkViewer';
+import PlanOvoViewerComponent from './PlanOvoViewer';
 
 interface DeliverableViewerProps {
   moduleCode: string;
