@@ -232,7 +232,7 @@ async function callClaudeAPI(data: EntrepreneurData): Promise<Record<string, unk
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 16384,
+          max_tokens: 32768,
           system: systemPrompt,
           messages: [{ role: "user", content: userPrompt }],
         }),
