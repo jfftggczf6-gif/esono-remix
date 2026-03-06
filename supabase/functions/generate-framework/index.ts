@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, saveDeliverable } from "../_shared/helpers.ts";
+import { normalizeFramework } from "../_shared/normalizers.ts";
 
 const SYSTEM_PROMPT = `Tu es un analyste financier expert spécialisé dans les PME africaines (zone UEMOA/CEMAC). Tu calcules les ratios financiers et produis des analyses complètes.
 IMPORTANT: Réponds UNIQUEMENT en JSON valide.`;
