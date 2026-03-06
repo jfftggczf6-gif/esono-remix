@@ -163,7 +163,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: urlData } = await supabase.storage
       .from(OUTPUT_BUCKET)
-      .createSignedUrl(outputFileName, 3600); // 1 heure
+      .createSignedUrl(outputFileName, 86400); // 24 heures
 
     console.log("[generate-ovo-plan] SUCCESS");
 
@@ -262,8 +262,6 @@ async function callClaudeAPI(data: EntrepreneurData): Promise<Record<string, unk
         }
         throw parseErr;
       }
-      console.log(`[Claude] OK — products: ${parsed.products?.length}, services: ${parsed.services?.length}`);
-      return parsed;
 
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -331,11 +329,11 @@ ENTREPRISE :
 - Employés actuels : ${data.employees || 0}
 - CA actuel estimé : ${data.existing_revenue || 0} FCFA
 
-PRODUITS (${data.products.length}) :
-${data.products.map((p, i) => `  ${i+1}. ${p.name} — ${p.description}${p.price ? ` — Prix indicatif: ${p.price} FCFA` : ""}`).join("\n")}
+PRODUITS (${(data.products || []).length}) :
+${(data.products || []).map((p, i) => `  ${i+1}. ${p.name} — ${p.description}${p.price ? ` — Prix indicatif: ${p.price} FCFA` : ""}`).join("\n")}
 
-SERVICES (${data.services.length}) :
-${data.services.map((s, i) => `  ${i+1}. ${s.name} — ${s.description}${s.price ? ` — Prix indicatif: ${s.price} FCFA` : ""}`).join("\n")}
+SERVICES (${(data.services || []).length}) :
+${(data.services || []).map((s, i) => `  ${i+1}. ${s.name} — ${s.description}${s.price ? ` — Prix indicatif: ${s.price} FCFA` : ""}`).join("\n")}
 
 BESOINS FINANCIERS :
 - Investissements démarrage : ${data.startup_costs || 0} FCFA
@@ -1289,6 +1287,6 @@ function corsHeaders() {
   return {
     "Access-Control-Allow-Origin":  "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   };
 }
