@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, saveDeliverable } from "../_shared/helpers.ts";
 import { normalizeFramework } from "../_shared/normalizers.ts";
+import { fillFrameworkExcelTemplate } from "../_shared/framework-excel-template.ts";
 
 const SYSTEM_PROMPT = `Tu es un analyste financier expert spécialisé dans les PME africaines (zone UEMOA/CEMAC). Tu produis des analyses financières complètes de type "Framework d'Analyse Financière PME" avec ratios, projections 5 ans, scénarios, et plan d'action.
 IMPORTANT: Réponds UNIQUEMENT en JSON valide. Tous les montants en FCFA.`;
@@ -183,7 +184,31 @@ serve(async (req) => {
 
     await saveDeliverable(ctx.supabase, ctx.enterprise_id, "framework_data", data, "framework");
 
-    return jsonResponse({ success: true, data, score: data.score });
+    // ── Pré-générer et stocker le template Excel rempli ──
+    let excelGenerated = false;
+    try {
+      const xlsxBytes = await fillFrameworkExcelTemplate(data, ent.name, ctx.supabase);
+      let binary = '';
+      for (let i = 0; i < xlsxBytes.byteLength; i++) binary += String.fromCharCode(xlsxBytes[i]);
+      const xlsxB64 = btoa(binary);
+
+      await ctx.supabase.from("deliverables").upsert({
+        enterprise_id: ctx.enterprise_id,
+        type: "framework_excel",
+        data: { generated_at: new Date().toISOString(), template: 'Framework_Analyse_PME_Cote_Ivoire.xlsx', size_bytes: xlsxBytes.byteLength },
+        html_content: xlsxB64,
+        score: data.score || null,
+        ai_generated: true,
+        version: 1,
+      }, { onConflict: "enterprise_id,type" });
+
+      excelGenerated = true;
+      console.log(`[generate-framework] ✅ Template Excel rempli stocké (${xlsxBytes.byteLength} bytes)`);
+    } catch (xlsxErr: any) {
+      console.warn("[generate-framework] Excel filling failed (non-blocking):", xlsxErr?.message);
+    }
+
+    return jsonResponse({ success: true, data, score: data.score, excel_generated: excelGenerated });
   } catch (e: any) {
     console.error("generate-framework error:", e);
     return errorResponse(e.message || "Erreur inconnue", e.status || 500);

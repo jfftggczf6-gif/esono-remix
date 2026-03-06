@@ -1088,6 +1088,45 @@ serve(async (req) => {
 
     // XLSX format - real Office Open XML
     if (format === "xlsx") {
+      // PRIORITY 0: Servir le template rempli depuis DB (instantané) pour framework_data
+      if (deliverableType === "framework_data") {
+        const { data: prebuilt } = await supabase
+          .from("deliverables")
+          .select("html_content")
+          .eq("enterprise_id", enterpriseId)
+          .eq("type", "framework_excel")
+          .maybeSingle();
+
+        if (prebuilt?.html_content && prebuilt.html_content.length > 1000) {
+          const binary = atob(prebuilt.html_content);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          return new Response(bytes, {
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "Content-Disposition": `attachment; filename="${safeName}_Framework_Analyse_PME.xlsx"`,
+            },
+          });
+        }
+
+        // PRIORITY 1: Générer à la volée depuis Storage
+        try {
+          const { fillFrameworkExcelTemplate } = await import("../_shared/framework-excel-template.ts");
+          const xlsxBytes = await fillFrameworkExcelTemplate(deliv.data, ent.name, supabase);
+          return new Response(xlsxBytes, {
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "Content-Disposition": `attachment; filename="${safeName}_Framework_Analyse_PME.xlsx"`,
+            },
+          });
+        } catch (templateErr) {
+          console.warn("[download] Template filling failed, falling back:", templateErr);
+        }
+      }
+
+      // FALLBACK: XLSX basique existant
       const xlsxBuilders: Record<string, (d: any) => any> = {
         inputs_data: buildInputsXlsx,
         framework_data: buildFrameworkXlsx,
