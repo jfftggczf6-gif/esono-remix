@@ -67,9 +67,10 @@ serve(async (req) => {
     const ent = ctx.enterprise;
     const bmcData = ctx.deliverableMap["bmc_analysis"] || {};
 
-    const data = await callAI(SYSTEM_PROMPT, userPrompt(
+    const rawData = await callAI(SYSTEM_PROMPT, userPrompt(
       ent.name, ent.sector || "", ent.country || "", ctx.documentContent, bmcData
     ));
+    const data = normalizeInputs(rawData);
 
     await saveDeliverable(ctx.supabase, ctx.enterprise_id, "inputs_data", data, "inputs");
 

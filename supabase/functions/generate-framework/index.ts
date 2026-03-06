@@ -53,9 +53,10 @@ serve(async (req) => {
     const ent = ctx.enterprise;
     const inputsData = ctx.deliverableMap["inputs_data"] || ctx.moduleMap["inputs"] || {};
 
-    const data = await callAI(SYSTEM_PROMPT, userPrompt(
+    const rawData = await callAI(SYSTEM_PROMPT, userPrompt(
       ent.name, ent.sector || "", ctx.documentContent, inputsData
     ));
+    const data = normalizeFramework(rawData);
 
     await saveDeliverable(ctx.supabase, ctx.enterprise_id, "framework_data", data, "framework");
 
