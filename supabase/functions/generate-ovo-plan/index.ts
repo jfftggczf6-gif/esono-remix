@@ -31,8 +31,8 @@ interface EntrepreneurData {
   country: string;
   sector: string;
   business_model: string;
-  products: Array<{ name: string; description: string; price?: number }>;
-  services: Array<{ name: string; description: string; price?: number }>;
+  products: Array<{ name: string; description: string; price?: number; deduit_du_bmc?: boolean }>;
+  services: Array<{ name: string; description: string; price?: number; deduit_du_bmc?: boolean }>;
   current_year: number;
   employees?: number;
   existing_revenue?: number;
@@ -40,6 +40,10 @@ interface EntrepreneurData {
   loan_needed?: number;
   bmc_data?: Record<string, unknown>;
   sic_data?: Record<string, unknown>;
+  inputs_data?: Record<string, unknown>;
+  framework_data?: Record<string, unknown>;
+  plan_ovo_data?: Record<string, unknown>;
+  diagnostic_data?: Record<string, unknown>;
 }
 
 interface CellWrite {
@@ -137,11 +141,22 @@ Deno.serve(async (req: Request) => {
     if (!Array.isArray(data.products)) data.products = [];
     if (!Array.isArray(data.services)) data.services = [];
 
-    console.log(`[generate-ovo-plan] START — user: ${authUser.id}, company: ${data.company}`);
+    console.log(`[generate-ovo-plan] START — user: ${authUser.id}, company: ${data.company}, products: ${data.products.length}, services: ${data.services.length}`);
+    console.log(`[generate-ovo-plan] Extra data: inputs=${!!data.inputs_data}, framework=${!!data.framework_data}, sic=${!!data.sic_data}, diagnostic=${!!data.diagnostic_data}, prev_plan=${!!data.plan_ovo_data}`);
 
     // ── Étape 1 : Appel Claude API ─────────────────────────────────────
     console.log("[generate-ovo-plan] Calling Claude API...");
     const financialJson = await callClaudeAPI(data);
+
+    // ── Validation post-IA : vérifier products/services ────────────────
+    const aiProducts = Array.isArray(financialJson.products) ? financialJson.products.filter((p: any) => p.active !== false) : [];
+    const aiServices = Array.isArray(financialJson.services) ? financialJson.services.filter((s: any) => s.active !== false) : [];
+    console.log(`[generate-ovo-plan] AI returned ${aiProducts.length} active products, ${aiServices.length} active services`);
+
+    if (aiProducts.length === 0 && aiServices.length === 0) {
+      console.error("[generate-ovo-plan] VALIDATION FAILED: AI returned 0 products AND 0 services");
+      throw new Error("L'IA n'a généré aucun produit ni service. Veuillez vérifier que les données BMC/inputs contiennent des informations sur vos activités.");
+    }
 
     // ── Étape 2 : Télécharger le template ─────────────────────────────
     console.log("[generate-ovo-plan] Downloading template...");
@@ -344,6 +359,98 @@ SORTIE OBLIGATOIRE :
 function buildUserPrompt(data: EntrepreneurData): string {
   const cy = data.current_year || new Date().getFullYear();
 
+  // ── Build enriched context blocks ──
+  const hasProducts = (data.products || []).length > 0;
+  const hasServices = (data.services || []).length > 0;
+  const deducedProducts = (data.products || []).filter(p => p.deduit_du_bmc);
+  const deducedServices = (data.services || []).filter(s => s.deduit_du_bmc);
+
+  // Format products/services lists
+  const productsList = hasProducts
+    ? (data.products || []).map((p, i) => `  ${i+1}. ${p.name} — ${p.description}${p.price ? ` — Prix indicatif: ${p.price} FCFA` : ""}${p.deduit_du_bmc ? " [DÉDUIT DU BMC - à enrichir]" : ""}`).join("\n")
+    : "  Aucun produit fourni explicitement.";
+
+  const servicesList = hasServices
+    ? (data.services || []).map((s, i) => `  ${i+1}. ${s.name} — ${s.description}${s.price ? ` — Prix indicatif: ${s.price} FCFA` : ""}${s.deduit_du_bmc ? " [DÉDUIT DU BMC - à enrichir]" : ""}`).join("\n")
+    : "  Aucun service fourni explicitement.";
+
+  // ── Inputs financiers block ──
+  let inputsBlock = "";
+  if (data.inputs_data && Object.keys(data.inputs_data).length > 0) {
+    const inp = data.inputs_data as Record<string, any>;
+    const cr = inp.compte_resultat || {};
+    const bilan = inp.bilan || {};
+    inputsBlock = `
+DONNÉES FINANCIÈRES INPUTS :
+- CA : ${cr.chiffre_affaires || cr.ca || inp.revenue || 'N/A'} FCFA
+- Achats matières : ${cr.achats_matieres || cr.achats || 'N/A'} FCFA
+- Charges personnel : ${cr.charges_personnel || cr.salaires || 'N/A'} FCFA
+- Charges externes : ${cr.charges_externes || 'N/A'} FCFA
+- Résultat exploitation : ${cr.resultat_exploitation || cr.ebit || 'N/A'} FCFA
+- Résultat net : ${cr.resultat_net || 'N/A'} FCFA
+- Bilan total actif : ${bilan.total_actif || 'N/A'} FCFA
+- Capitaux propres : ${bilan.capitaux_propres || 'N/A'} FCFA
+- Dettes totales : ${bilan.dettes_totales || bilan.total_dettes || 'N/A'} FCFA
+${inp.produits ? `- Produits déclarés inputs : ${JSON.stringify(inp.produits)}` : ""}
+${inp.activites ? `- Activités déclarées inputs : ${JSON.stringify(inp.activites)}` : ""}
+DONNÉES INPUTS COMPLÈTES : ${JSON.stringify(data.inputs_data, null, 2)}`;
+  }
+
+  // ── Framework block ──
+  let frameworkBlock = "";
+  if (data.framework_data && Object.keys(data.framework_data).length > 0) {
+    const fw = data.framework_data as Record<string, any>;
+    frameworkBlock = `
+PROJECTIONS FRAMEWORK (Plan Financier Intermédiaire) :
+${fw.kpis ? `- KPIs : CA=${fw.kpis.ca_annee_n || 'N/A'}, EBITDA=${fw.kpis.ebitda || 'N/A'}, Marge brute=${fw.kpis.marge_brute || 'N/A'}%` : ""}
+${fw.ratios_historiques ? `- Ratios historiques : ${JSON.stringify(fw.ratios_historiques)}` : ""}
+${fw.projection_5ans?.lignes ? `- Projection 5 ans : ${JSON.stringify(fw.projection_5ans.lignes)}` : ""}
+${fw.tresorerie_bfr ? `- Trésorerie/BFR : trésorerie=${fw.tresorerie_bfr.tresorerie_nette || 'N/A'}, cashflow=${fw.tresorerie_bfr.cashflow_operationnel || 'N/A'}, CAF=${fw.tresorerie_bfr.caf || 'N/A'}` : ""}
+${fw.analyse_marge?.activites ? `- Analyse marge par activité : ${JSON.stringify(fw.analyse_marge.activites)}` : ""}
+${fw.scenarios?.tableau ? `- Scénarios : ${JSON.stringify(fw.scenarios.tableau)}` : ""}
+DONNÉES FRAMEWORK COMPLÈTES : ${JSON.stringify(data.framework_data, null, 2)}`;
+  }
+
+  // ── SIC block ──
+  let sicBlock = "";
+  if (data.sic_data && Object.keys(data.sic_data).length > 0) {
+    const sic = data.sic_data as Record<string, any>;
+    sicBlock = `
+IMPACT SOCIAL (SIC) :
+${sic.odd_alignment ? `- ODD alignés : ${JSON.stringify(sic.odd_alignment)}` : ""}
+${sic.parties_prenantes ? `- Parties prenantes : ${JSON.stringify(sic.parties_prenantes)}` : ""}
+${sic.theorie_changement ? `- Théorie du changement : ${JSON.stringify(sic.theorie_changement)}` : ""}
+${sic.indicateurs ? `- Indicateurs d'impact : ${JSON.stringify(sic.indicateurs)}` : ""}`;
+  }
+
+  // ── Previous plan block ──
+  let prevPlanBlock = "";
+  if (data.plan_ovo_data && Object.keys(data.plan_ovo_data).length > 0) {
+    prevPlanBlock = `
+PLAN FINANCIER PRÉCÉDENT (pour cohérence) :
+${JSON.stringify(data.plan_ovo_data, null, 2)}`;
+  }
+
+  // ── Diagnostic block ──
+  let diagnosticBlock = "";
+  if (data.diagnostic_data && Object.keys(data.diagnostic_data).length > 0) {
+    const diag = data.diagnostic_data as Record<string, any>;
+    diagnosticBlock = `
+DIAGNOSTIC EXPERT :
+${diag.synthese_executive ? `- Synthèse : ${diag.synthese_executive}` : ""}
+${diag.swot ? `- SWOT : ${JSON.stringify(diag.swot)}` : ""}
+${diag.recommandations ? `- Recommandations : ${JSON.stringify(diag.recommandations)}` : ""}`;
+  }
+
+  // ── Smart product instructions ──
+  const productInstructions = hasProducts
+    ? `1. Utilise les ${data.products.length} produits fournis${deducedProducts.length > 0 ? ` (dont ${deducedProducts.length} déduits du BMC — enrichis-les avec des noms commerciaux, prix réalistes et descriptions détaillées)` : ""}`
+    : `1. DÉDUIS au moins 1 produit depuis les données BMC/inputs/framework ci-dessus — ne laisse JAMAIS les produits vides`;
+
+  const serviceInstructions = hasServices
+    ? `2. Utilise les ${data.services.length} services fournis${deducedServices.length > 0 ? ` (dont ${deducedServices.length} déduits du BMC — enrichis-les)` : ""}`
+    : `2. DÉDUIS au moins 1 service depuis les données BMC/inputs/framework ci-dessus — ne laisse JAMAIS les services vides`;
+
   return `Génère le plan financier OVO pour cette entreprise :
 
 ENTREPRISE :
@@ -356,25 +463,32 @@ ENTREPRISE :
 - CA actuel estimé : ${data.existing_revenue || 0} FCFA
 
 PRODUITS (${(data.products || []).length}) :
-${(data.products || []).map((p, i) => `  ${i+1}. ${p.name} — ${p.description}${p.price ? ` — Prix indicatif: ${p.price} FCFA` : ""}`).join("\n")}
+${productsList}
 
 SERVICES (${(data.services || []).length}) :
-${(data.services || []).map((s, i) => `  ${i+1}. ${s.name} — ${s.description}${s.price ? ` — Prix indicatif: ${s.price} FCFA` : ""}`).join("\n")}
+${servicesList}
 
 BESOINS FINANCIERS :
 - Investissements démarrage : ${data.startup_costs || 0} FCFA
 - Prêt OVO souhaité : ${data.loan_needed || 0} FCFA
+${inputsBlock}
+${frameworkBlock}
+${sicBlock}
+${diagnosticBlock}
+${prevPlanBlock}
 
 ${data.bmc_data ? `BUSINESS MODEL CANVAS :\n${JSON.stringify(data.bmc_data, null, 2)}` : ""}
 
 INSTRUCTIONS :
 Génère le JSON OVOFinancialPlanInput COMPLET avec :
-1. Exactement ${Math.min(data.products.length, 5)} produits actifs UNIQUEMENT (pas de slots inactifs/vides)
-2. Exactement ${Math.min(data.services.length, 5)} services actifs UNIQUEMENT (pas de slots inactifs/vides)
+${productInstructions}
+${serviceInstructions}
 3. Au minimum 1 catégorie de staff (STAFF_CAT01)
 4. CAPEX réaliste pour les immobilisations nécessaires
 5. Prévisions sur 8 années (YEAR-2 à YEAR6)
 6. Scénario : TYPICAL_CASE
+7. BASE-TOI SUR TOUTES LES DONNÉES FINANCIÈRES ci-dessus pour des projections cohérentes et réalistes
+8. Les montants historiques (YEAR-2, YEAR-1, CURRENT YEAR) doivent correspondre aux données inputs/framework si disponibles
 
 JSON SCHEMA ATTENDU :
 {
