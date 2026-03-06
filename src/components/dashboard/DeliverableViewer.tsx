@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import FrameworkViewerComponent from './FrameworkViewer';
 
 interface DeliverableViewerProps {
   moduleCode: string;
@@ -14,7 +15,7 @@ export default function DeliverableViewer({ moduleCode, data }: DeliverableViewe
   switch (moduleCode) {
     case 'sic': return <SicViewer data={data} />;
     case 'inputs': return <InputsViewer data={data} />;
-    case 'framework': return <FrameworkViewer data={data} />;
+    case 'framework': return <FrameworkViewerComponent data={data} />;
     case 'diagnostic': return <DiagnosticViewer data={data} />;
     case 'plan_ovo': return <PlanOvoViewer data={data} />;
     case 'business_plan': return <BusinessPlanViewer data={data} />;
