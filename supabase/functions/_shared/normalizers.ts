@@ -137,6 +137,56 @@ export function normalizeFramework(raw: any): any {
   d.points_forts = toArray(pick(d, 'points_forts', 'forces', 'strengths'));
   d.points_faibles = toArray(pick(d, 'points_faibles', 'faiblesses', 'weaknesses'));
   d.recommandations = toArray(pick(d, 'recommandations', 'recommendations'));
+
+  // Ensure ratios_historiques is always an array
+  if (d.ratios_historiques && !Array.isArray(d.ratios_historiques)) {
+    d.ratios_historiques = [];
+  }
+
+  // Normalize projection_5ans.lignes — ensure all 8 lines exist
+  if (d.projection_5ans?.lignes && Array.isArray(d.projection_5ans.lignes)) {
+    d.projection_5ans.lignes = d.projection_5ans.lignes.map((l: any) => {
+      const result = { ...l };
+      // Ensure numeric values for an1-an5
+      for (const yr of ['an1', 'an2', 'an3', 'an4', 'an5']) {
+        if (result[yr] != null && typeof result[yr] === 'string') {
+          const cleaned = result[yr].replace(/[%\s,]/g, '');
+          const num = parseFloat(cleaned);
+          if (!isNaN(num) && !result[yr].includes('%')) result[yr] = num;
+        }
+      }
+      return result;
+    });
+  }
+
+  // Normalize scenarios.tableau items
+  if (d.scenarios?.tableau && Array.isArray(d.scenarios.tableau)) {
+    d.scenarios.tableau = d.scenarios.tableau.map((t: any) => ({ ...t }));
+  }
+
+  // Normalize analyse_marge.activites
+  if (d.analyse_marge?.activites && Array.isArray(d.analyse_marge.activites)) {
+    d.analyse_marge.activites = d.analyse_marge.activites.map((a: any) => ({
+      ...a,
+      ca: a.ca != null ? toNumber(a.ca) : 0,
+      marge_brute: a.marge_brute != null ? toNumber(a.marge_brute) : 0,
+    }));
+  }
+
+  // Normalize tresorerie_bfr
+  if (d.tresorerie_bfr) {
+    const bfr = d.tresorerie_bfr;
+    bfr.tresorerie_nette = bfr.tresorerie_nette != null ? toNumber(bfr.tresorerie_nette) : undefined;
+    bfr.cashflow_operationnel = bfr.cashflow_operationnel != null ? toNumber(bfr.cashflow_operationnel) : undefined;
+    bfr.caf = bfr.caf != null ? toNumber(bfr.caf) : undefined;
+  }
+
+  // Normalize kpis
+  if (d.kpis) {
+    d.kpis.ca_annee_n = d.kpis.ca_annee_n != null ? toNumber(d.kpis.ca_annee_n) : undefined;
+    d.kpis.ebitda = d.kpis.ebitda != null ? toNumber(d.kpis.ebitda) : undefined;
+  }
+
   return d;
 }
 
