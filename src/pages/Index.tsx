@@ -139,7 +139,7 @@ export default function Index() {
             <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center">
               <BookOpen className="h-3.5 w-3.5 text-primary" />
             </div>
-            <h3 className="text-sm font-display font-bold uppercase tracking-wide text-muted-foreground">Modules Hybrides (1-3)</h3>
+            <h3 className="text-sm font-display font-bold uppercase tracking-wide text-muted-foreground">Modules Hybrides (1-2)</h3>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">Micro-learning + IA + Coaching</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
