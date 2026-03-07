@@ -8,9 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, Building2, CheckCircle2, Clock, ChevronRight, LayoutGrid, Globe, BarChart3, Stethoscope, ListChecks, FileText, Target, Download, Sparkles, Loader2, X } from 'lucide-react';
+import { Users, Building2, CheckCircle2, Clock, ChevronRight, LayoutGrid, Globe, BarChart3, Stethoscope, ListChecks, FileText, Target, Download, Sparkles, Loader2, X, FileBarChart } from 'lucide-react';
 import BmcViewer from './BmcViewer';
+import SicViewer from './SicViewer';
 import DeliverableViewer from './DeliverableViewer';
+import BusinessPlanPreview from './BusinessPlanPreview';
 import { toast } from 'sonner';
 
 const MODULE_CONFIG = [
@@ -147,6 +149,27 @@ export default function CoachDashboard() {
     }
   };
 
+  const handleDownloadCoachingReport = async (enterpriseId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non authentifié");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-deliverable?type=coaching_report&enterprise_id=${enterpriseId}&format=html`;
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${session.access_token}` } });
+      if (!response.ok) throw new Error('Erreur');
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `rapport_coaching.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      toast.success('Rapport coaching téléchargé !');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleDownload = async (type: string, enterpriseId: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -187,9 +210,28 @@ export default function CoachDashboard() {
         title={ent.name}
         subtitle={`${ent.sector || 'Secteur non défini'} • ${ent.city || ''} ${ent.country || ''}`}
       >
-        <Button variant="ghost" size="sm" className="mb-4 gap-1" onClick={() => setSelectedEnterprise(null)}>
-          ← Retour à la liste
-        </Button>
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedEnterprise(null)}>
+            ← Retour à la liste
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => handleDownloadCoachingReport(ent.id)}
+            >
+              <FileBarChart className="h-4 w-4" /> Rapport Coaching
+            </Button>
+            <Button onClick={() => handleGenerateAll(ent.id)} disabled={generating} size="sm" className="gap-2">
+              {generating && generationProgress ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> {generationProgress.name} ({generationProgress.current}/{generationProgress.total})...</>
+              ) : (
+                <><Sparkles className="h-4 w-4" /> Générer tous les livrables</>
+              )}
+            </Button>
+          </div>
+        </div>
 
         {/* Module tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b">
@@ -216,10 +258,16 @@ export default function CoachDashboard() {
         {/* Module content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3">
-            {selectedModule === 'bmc' && deliv?.data && typeof deliv.data === 'object' ? (
-              <BmcViewer data={deliv.data} />
-            ) : deliv?.data && typeof deliv.data === 'object' ? (
-              <DeliverableViewer moduleCode={selectedModule} data={deliv.data} />
+            {deliv?.data && typeof deliv.data === 'object' ? (
+              selectedModule === 'bmc' ? (
+                <BmcViewer data={deliv.data} />
+              ) : selectedModule === 'sic' ? (
+                <SicViewer data={deliv.data} />
+              ) : selectedModule === 'business_plan' ? (
+                <BusinessPlanPreview data={deliv.data as Record<string, any>} />
+              ) : (
+                <DeliverableViewer moduleCode={selectedModule} data={deliv.data} />
+              )
             ) : (
               <Card className="flex flex-col items-center justify-center py-16 text-center">
                 <p className="text-muted-foreground mb-4">Aucune donnée générée pour ce module.</p>

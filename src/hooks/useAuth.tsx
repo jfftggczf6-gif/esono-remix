@@ -11,6 +11,7 @@ interface AuthContextType {
   role: AppRole | null;
   profile: { full_name: string | null; email: string | null; avatar_url: string | null } | null;
   loading: boolean;
+  roleLoading: boolean;
   signUp: (email: string, password: string, fullName: string, selectedRole?: AppRole) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<AppRole | null>(null);
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(false);
 
   const fetchUserData = async (userId: string) => {
     const [profileRes, roleRes] = await Promise.all([
@@ -54,10 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         // Fire and forget — no await to avoid deadlock
-        fetchUserData(session.user.id);
+        setRoleLoading(true);
+        fetchUserData(session.user.id).finally(() => setRoleLoading(false));
       } else {
         setProfile(null);
         setRoleState(null);
+        setRoleLoading(false);
       }
     });
 
@@ -105,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, role, profile, loading, signUp, signIn, signOut, setRole }}>
+    <AuthContext.Provider value={{ session, user, role, profile, loading, roleLoading, signUp, signIn, signOut, setRole }}>
       {children}
     </AuthContext.Provider>
   );
