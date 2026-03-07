@@ -845,6 +845,7 @@ export default function EntrepreneurDashboard() {
       </Dialog>
 
 
+      <div className="flex-none h-12 bg-[hsl(222,47%,15%)] flex items-center px-6 gap-6">
         <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/60">Investment Readiness</span>
         <span className="text-2xl font-display font-bold text-white">{globalScore > 0 ? `${globalScore}/100` : '—/100'}</span>
         <div className="w-40 h-2 rounded-full bg-white/10 overflow-hidden">
