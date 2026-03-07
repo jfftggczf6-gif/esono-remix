@@ -720,6 +720,13 @@ serve(async (req) => {
     bpJson.score = bpJson.score || part1.score || 50;
     bpJson.company_name = bpJson.company_name || ent.name;
 
+    // Sync financial table with Plan OVO synchronized data
+    const planOvoData = ctx.deliverableMap["plan_ovo"];
+    if (planOvoData?.revenue) {
+      console.log("[BP] Syncing financier_tableau with Plan OVO data...");
+      syncBusinessPlanWithPlanOvo(bpJson, planOvoData);
+    }
+
     console.log("[BP] Merged, generating Word document...");
 
     // Generate Word document
