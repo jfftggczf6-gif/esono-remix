@@ -435,7 +435,7 @@ async function callClaudeAPI(data: EntrepreneurData, supabase?: any, enterpriseI
 
 function buildSystemPrompt(): string {
   return `Tu es un expert financier spécialisé dans les PME africaines (Afrique de l'Ouest, zone FCFA/XOF).
-Tu génères un plan financier OVO structuré sur 8 périodes pour un entrepreneur.
+Tu génères un plan financier OVO au FORMAT CONDENSÉ pour un entrepreneur.
 
 CONTEXTE FISCAL CÔTE D'IVOIRE (2025) :
 - Devise : XOF (FCFA) — taux fixe 655.957 XOF/EUR
@@ -451,31 +451,19 @@ RÈGLES DE PROJECTION RÉALISTES :
 - Marge brute produits physiques : 30-60% selon secteur
 - Marge brute services : 60-85% selon complexité
 - Staff : effectif réel uniquement, pas de sur-estimation
-- YEAR-2 et YEAR-1 = données historiques ou 0 si startup
 - Volumes = entiers (jamais décimaux)
 - Montants = FCFA, arrondir à 1000 FCFA près
 
-CONTRAINTES TECHNIQUES EXCEL :
-- Pour chaque produit/service actif : mix_r1 + mix_r2 + mix_r3 = 1.0 EXACTEMENT
-- Pour chaque gamme utilisée : mix_ch1 + mix_ch2 = 1.0 EXACTEMENT
-- Si gamme non utilisée : prix=0, cogs=0, mix=0
-- Produit inactif (active=false) : TOUS volumes, prix et mix à 0
-
-CONTRAINTES VOLUMES CRITIQUES (NE PAS IGNORER) :
-- Chaque produit/service actif DOIT avoir per_year avec les 8 entrées : YEAR-2, YEAR-1, CURRENT YEAR, YEAR2, YEAR3, YEAR4, YEAR5, YEAR6
-- Pour les années futures (YEAR2 à YEAR6) : volume_h1 et volume_h2 DOIVENT être > 0 pour chaque produit/service actif
-- JAMAIS de volume = 0 pour un produit actif en année future — c'est une ERREUR CRITIQUE
-- Les volumes doivent croître de manière réaliste d'année en année
-
-CONTRAINTES GAMMES DE PRIX :
-- Si l'entreprise utilise UNE SEULE gamme de prix, utiliser range_flags=[1,0,0] (gamme 1 = standard)
-- Mettre les prix dans unit_price_r1, les COGS dans cogs_r1, mix_r1=1.0
-- NE PAS mettre les prix en r3 quand une seule gamme est utilisée
-- range_flags=[0,0,1] signifie gamme HIGH END uniquement — à n'utiliser QUE si justifié
+FORMAT CONDENSÉ OBLIGATOIRE :
+- Pour chaque produit/service : donne UNIQUEMENT prix CY, taux COGS, volumes (YM2/YM1/CY), taux de croissance
+- Pour le staff : donne headcount par année (8 valeurs) + salaire CY + taux croissance salariale
+- Pour l'OPEX : donne le total CY par catégorie + taux de croissance
+- NE PAS générer de tableaux per_year détaillés — le code les reconstruit automatiquement
+- Chaque produit/service actif DOIT avoir volume_cy > 0
 
 SORTIE OBLIGATOIRE :
 - UNIQUEMENT un objet JSON valide — zéro markdown, zéro texte avant/après
-- Respecter EXACTEMENT la structure demandée
+- Respecter EXACTEMENT la structure condensée demandée
 - Tous montants en XOF (FCFA)`;
 }
 
