@@ -477,14 +477,25 @@ serve(async (req) => {
 
     console.log("[BP] Generating Business Plan for:", ent.name);
 
-    // Call AI with OVO-format schema
-    const bpJson = await callAI(BP_SYSTEM_PROMPT, buildBpPrompt(ctx));
+    // PART 1: Sections 1-8
+    console.log("[BP] AI Call 1/2: Sections 1-8...");
+    const part1 = await callAI(BP_SYSTEM_PROMPT, buildPromptPart1(ctx));
+    console.log("[BP] Part 1 OK, keys:", Object.keys(part1).length);
 
-    // Ensure score
-    bpJson.score = bpJson.score || 50;
+    // Build summary of part1 for context in part2
+    const part1Summary = `Entreprise: ${part1.company_name}, SWOT: ${(part1.swot?.forces || []).length} forces, Marché: ${(part1.marche_potentiel || "").substring(0, 100)}`;
+
+    // PART 2: Sections 9-14
+    console.log("[BP] AI Call 2/2: Sections 9-14...");
+    const part2 = await callAI(BP_SYSTEM_PROMPT, buildPromptPart2(ctx, part1Summary));
+    console.log("[BP] Part 2 OK, keys:", Object.keys(part2).length);
+
+    // Merge
+    const bpJson = { ...part1, ...part2 };
+    bpJson.score = bpJson.score || part1.score || 50;
     bpJson.company_name = bpJson.company_name || ent.name;
 
-    console.log("[BP] AI response OK, generating Word document...");
+    console.log("[BP] Merged, generating Word document...");
 
     // Generate Word document
     const docxBytes = await generateWordDoc(bpJson);
@@ -510,14 +521,12 @@ serve(async (req) => {
       throw new Error("Erreur d'upload du fichier Word: " + uploadError.message);
     }
 
-    // Get signed URL
     const { data: signedData } = await supabaseAdmin.storage
       .from("bp-outputs")
-      .createSignedUrl(fileName, 7200); // 2 hours
+      .createSignedUrl(fileName, 7200);
 
     const downloadUrl = signedData?.signedUrl || "";
 
-    // Save deliverable with BP JSON + file info
     const deliverableData = {
       ...bpJson,
       _meta: {
