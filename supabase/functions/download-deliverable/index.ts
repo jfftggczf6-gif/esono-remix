@@ -844,32 +844,167 @@ ${croisBmc.synthese?`<p style="font-size:13px;color:#64748b;margin-bottom:12px">
 // ===== DIAGNOSTIC HTML =====
 function diagnosticHTML(data: any, ent: string): string {
   let body = '';
-  if (data.synthese_executive) body += `<div class="card"><h2>📋 Synthèse</h2><p style="font-size:15px">${data.synthese_executive}</p>${data.niveau_maturite ? `<p style="margin-top:8px"><span class="badge badge-blue">${data.niveau_maturite}</span></p>` : ''}</div>`;
 
-  const dims = data.diagnostic_par_dimension || {};
-  if (Object.keys(dims).length) {
-    body += `<div class="card"><h2>📊 Scores par dimension</h2>`;
-    for (const [k, d] of Object.entries(dims) as [string, any][]) {
-      const color = d.score >= 70 ? 'green' : d.score >= 50 ? 'yellow' : 'red';
-      body += `<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600;font-size:13px">${k.replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase())}</span><span class="badge badge-${color}">${d.score}%</span></div>
-<div class="progress-bar"><div class="progress-fill ${color}" style="width:${d.score}%"></div></div>
-<p style="font-size:12px;color:#64748b;margin-top:4px">${d.analyse||''}</p></div>`;
+  // New format detection
+  const isNew = data.scores_dimensions || data.resume_executif || data.avis_par_livrable;
+
+  if (isNew) {
+    // Header with palier
+    if (data.label || data.palier) {
+      const palierColor = data.score_global >= 70 ? 'green' : data.score_global >= 50 ? 'yellow' : 'red';
+      body += `<div class="card" style="text-align:center;padding:32px">
+        <div style="font-size:48px;margin-bottom:8px">${data.couleur || '📊'}</div>
+        <div style="font-size:22px;font-weight:800;color:#1a2744">${data.label || data.palier || ''}</div>
+        <p style="margin-top:4px;color:#64748b;font-size:13px">Score global : <span class="badge badge-${palierColor}">${data.score_global ?? '—'}/100</span></p>
+      </div>`;
     }
-    body += '</div>';
+
+    // Resume executif
+    if (data.resume_executif) {
+      body += `<div class="card"><h2>📋 Résumé Exécutif</h2><p style="font-size:14px;white-space:pre-line">${data.resume_executif}</p></div>`;
+    }
+
+    // 5 Dimensions
+    const dims = data.scores_dimensions;
+    if (dims && typeof dims === 'object') {
+      body += `<div class="card"><h2>📊 Scores par Dimension</h2>`;
+      for (const [key, dim] of Object.entries(dims) as [string, any][]) {
+        if (!dim || typeof dim !== 'object') continue;
+        const s = dim.score ?? 0;
+        const color = s >= 70 ? 'green' : s >= 50 ? 'yellow' : 'red';
+        const label = dim.label || key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+        body += `<div style="margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-weight:600;font-size:14px">${label}</span>
+            <span class="badge badge-${color}">${s}/100 (${dim.poids || 0}%)</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill ${color}" style="width:${s}%"></div></div>
+          ${dim.commentaire ? `<p style="font-size:12px;color:#64748b;margin-top:4px">${dim.commentaire}</p>` : ''}
+          ${dim.analyse_detaillee ? `<p style="font-size:12px;color:#475569;margin-top:2px;font-style:italic">${dim.analyse_detaillee}</p>` : ''}
+        </div>`;
+      }
+      body += '</div>';
+    }
+
+    // Forces
+    if (data.forces?.length) {
+      body += `<div class="card" style="border-left:4px solid #22c55e"><h2>💪 Forces</h2>`;
+      for (const f of data.forces) {
+        body += `<div style="margin-bottom:12px"><strong>${f.titre || ''}</strong>${f.livrable_source ? ` <span class="tag">${f.livrable_source}</span>` : ''}<p style="font-size:13px;color:#475569">${f.justification || ''}</p>${f.impact ? `<p style="font-size:12px;color:#166534;margin-top:2px">Impact : ${f.impact}</p>` : ''}</div>`;
+      }
+      body += '</div>';
+    }
+
+    // Opportunites d'amelioration
+    if (data.opportunites_amelioration?.length) {
+      body += `<div class="card" style="border-left:4px solid #eab308"><h2>🔧 Opportunités d'Amélioration</h2>`;
+      for (const o of data.opportunites_amelioration) {
+        const pColor = o.priorite === 'elevee' ? 'red' : o.priorite === 'moyenne' ? 'yellow' : 'blue';
+        body += `<div style="margin-bottom:12px"><strong>${o.titre || ''}</strong> <span class="badge badge-${pColor}">${o.priorite || ''}</span>${o.livrable_concerne ? ` <span class="tag">${o.livrable_concerne}</span>` : ''}<p style="font-size:13px;color:#475569">${o.justification || ''}</p></div>`;
+      }
+      body += '</div>';
+    }
+
+    // Benchmarks
+    const bm = data.benchmarks;
+    if (bm && typeof bm === 'object' && Object.keys(bm).length) {
+      body += `<div class="card"><h2>📈 Benchmarks Sectoriels</h2><table><thead><tr><th>Indicateur</th><th>Entreprise</th><th>Secteur (min-max)</th><th>Verdict</th></tr></thead><tbody>`;
+      const bmLabels: Record<string, string> = { marge_brute: 'Marge Brute', marge_nette: 'Marge Nette', charges_fixes_ca: 'Charges Fixes/CA', masse_salariale_ca: 'Masse Salariale/CA', dscr: 'DSCR' };
+      for (const [key, val] of Object.entries(bm) as [string, any][]) {
+        if (!val || typeof val !== 'object') continue;
+        const vColor = val.verdict === 'ok' ? 'green' : val.verdict === 'bas' ? 'red' : 'yellow';
+        body += `<tr><td style="font-weight:600">${bmLabels[key] || key}</td><td class="amount">${val.entreprise != null ? (key === 'dscr' ? val.entreprise.toFixed(2) : val.entreprise + '%') : '—'}</td><td class="amount">${val.secteur_min ?? '—'} – ${val.secteur_max ?? '—'}</td><td><span class="badge badge-${vColor}">${val.verdict || '—'}</span></td></tr>`;
+      }
+      body += '</tbody></table></div>';
+    }
+
+    // Avis par livrable
+    const avis = data.avis_par_livrable;
+    if (avis && typeof avis === 'object' && Object.keys(avis).length) {
+      body += `<div class="card"><h2>📝 Avis par Livrable</h2>`;
+      const livrableLabels: Record<string, string> = { bmc: 'BMC', sic: 'SIC', inputs: 'Inputs', framework: 'Framework', plan_ovo: 'Plan OVO', business_plan: 'Business Plan', odd: 'ODD' };
+      for (const [key, av] of Object.entries(avis) as [string, any][]) {
+        if (!av || typeof av !== 'object') continue;
+        const qColor = av.qualite === 'excellent' ? 'green' : av.qualite === 'bon' ? 'blue' : av.qualite === 'moyen' ? 'yellow' : 'red';
+        body += `<div style="margin-bottom:20px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong style="font-size:15px">${livrableLabels[key] || key}</strong>
+            <span class="badge badge-${qColor}">${av.qualite || '—'}</span>
+          </div>
+          ${av.avis_global ? `<p style="font-size:13px;color:#475569;margin-bottom:8px">${av.avis_global}</p>` : ''}
+          ${av.points_forts?.length ? `<div style="margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:#166534">✅ Points forts :</span> <span style="font-size:12px">${av.points_forts.join(' · ')}</span></div>` : ''}
+          ${av.points_amelioration?.length ? `<div><span style="font-size:12px;font-weight:600;color:#b45309">🔧 À améliorer :</span> <span style="font-size:12px">${av.points_amelioration.join(' · ')}</span></div>` : ''}
+        </div>`;
+      }
+      body += '</div>';
+    }
+
+    // Recommandations
+    if (data.recommandations?.length) {
+      body += `<div class="card"><h2>🎯 Recommandations Prioritaires</h2>`;
+      for (const r of data.recommandations) {
+        const uColor = r.urgence === 'elevee' ? 'red' : r.urgence === 'moyenne' ? 'yellow' : 'blue';
+        body += `<div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:8px;border-left:3px solid ${r.urgence === 'elevee' ? '#ef4444' : r.urgence === 'moyenne' ? '#eab308' : '#3b82f6'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong style="font-size:14px">${r.priorite ? `#${r.priorite} ` : ''}${r.titre || ''}</strong>
+            <span class="badge badge-${uColor}">${r.urgence || ''}</span>
+          </div>
+          ${r.detail ? `<p style="font-size:13px;color:#475569">${r.detail}</p>` : ''}
+          ${r.action_concrete ? `<p style="font-size:12px;color:#1a2744;margin-top:4px;font-weight:500">→ ${r.action_concrete}</p>` : ''}
+          ${r.message_encourageant ? `<p style="font-size:12px;color:#166534;margin-top:2px;font-style:italic">${r.message_encourageant}</p>` : ''}
+        </div>`;
+      }
+      body += '</div>';
+    }
+
+    // Synthese globale
+    const sg = data.synthese_globale;
+    if (sg) {
+      body += `<div class="card" style="background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-color:#86efac"><h2>🏆 Synthèse Globale</h2>`;
+      if (sg.avis_ensemble) body += `<p style="font-size:14px;white-space:pre-line;margin-bottom:16px">${sg.avis_ensemble}</p>`;
+      if (sg.points_cles_a_retenir?.length) {
+        body += `<h3>Points Clés</h3><ul>${sg.points_cles_a_retenir.map((p: string) => `<li>${p}</li>`).join('')}</ul>`;
+      }
+      if (sg.prochaines_etapes?.length) {
+        body += `<h3>Prochaines Étapes</h3><ol>${sg.prochaines_etapes.map((p: string) => `<li>${p}</li>`).join('')}</ol>`;
+      }
+      body += '</div>';
+    }
+
+    // Points attention prioritaires
+    if (data.points_attention_prioritaires?.length) {
+      body += `<div class="card" style="border-left:4px solid #f59e0b"><h2>⚠️ Points d'Attention Prioritaires</h2><ul>${data.points_attention_prioritaires.map((p: string) => `<li>${p}</li>`).join('')}</ul></div>`;
+    }
+
+  } else {
+    // Legacy format fallback
+    if (data.synthese_executive) body += `<div class="card"><h2>📋 Synthèse</h2><p style="font-size:15px">${data.synthese_executive}</p>${data.niveau_maturite ? `<p style="margin-top:8px"><span class="badge badge-blue">${data.niveau_maturite}</span></p>` : ''}</div>`;
+
+    const dims = data.diagnostic_par_dimension || {};
+    if (Object.keys(dims).length) {
+      body += `<div class="card"><h2>📊 Scores par dimension</h2>`;
+      for (const [k, d] of Object.entries(dims) as [string, any][]) {
+        const color = d.score >= 70 ? 'green' : d.score >= 50 ? 'yellow' : 'red';
+        body += `<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600;font-size:13px">${k.replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase())}</span><span class="badge badge-${color}">${d.score}%</span></div>
+  <div class="progress-bar"><div class="progress-fill ${color}" style="width:${d.score}%"></div></div>
+  <p style="font-size:12px;color:#64748b;margin-top:4px">${d.analyse||''}</p></div>`;
+      }
+      body += '</div>';
+    }
+
+    if (data.swot) {
+      body += `<div class="card"><h2>🧭 SWOT</h2><div class="swot-grid">
+  <div class="swot-box swot-s"><h4>Forces</h4><ul>${(data.swot.forces||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
+  <div class="swot-box swot-w"><h4>Faiblesses</h4><ul>${(data.swot.faiblesses||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
+  <div class="swot-box swot-o"><h4>Opportunités</h4><ul>${(data.swot.opportunites||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
+  <div class="swot-box swot-t"><h4>Menaces</h4><ul>${(data.swot.menaces||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
+  </div></div>`;
+    }
+
+    if (data.verdict) body += `<div class="card" style="background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-color:#86efac"><h2>🏆 Verdict</h2><p style="font-size:16px;font-weight:600;color:#166534">${data.verdict}</p></div>`;
   }
 
-  if (data.swot) {
-    body += `<div class="card"><h2>🧭 SWOT</h2><div class="swot-grid">
-<div class="swot-box swot-s"><h4>Forces</h4><ul>${(data.swot.forces||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
-<div class="swot-box swot-w"><h4>Faiblesses</h4><ul>${(data.swot.faiblesses||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
-<div class="swot-box swot-o"><h4>Opportunités</h4><ul>${(data.swot.opportunites||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
-<div class="swot-box swot-t"><h4>Menaces</h4><ul>${(data.swot.menaces||[]).map((s:any)=>`<li>${typeof s==='string'?s:s.item||s.description}</li>`).join('')}</ul></div>
-</div></div>`;
-  }
-
-  if (data.verdict) body += `<div class="card" style="background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-color:#86efac"><h2>🏆 Verdict</h2><p style="font-size:16px;font-weight:600;color:#166534">${data.verdict}</p></div>`;
-
-  return htmlShell('Diagnostic Expert', data.score, body, ent);
+  return htmlShell('Diagnostic Expert', data.score_global || data.score, body, ent);
 }
 
 // ===== PLAN OVO HTML (aligned with PlanOvoViewer data format) =====
