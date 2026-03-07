@@ -155,7 +155,7 @@ export default function Index() {
             <div className="h-6 w-6 rounded bg-info/10 flex items-center justify-center">
               <Sparkles className="h-3.5 w-3.5 text-info" />
             </div>
-            <h3 className="text-sm font-display font-bold uppercase tracking-wide text-muted-foreground">Modules Automatiques (4-8)</h3>
+            <h3 className="text-sm font-display font-bold uppercase tracking-wide text-muted-foreground">Modules Automatiques (3-7)</h3>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/10 text-info font-medium">Traitement IA</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
