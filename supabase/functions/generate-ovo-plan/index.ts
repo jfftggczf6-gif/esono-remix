@@ -183,6 +183,10 @@ Deno.serve(async (req: Request) => {
       throw new Error("L'IA n'a généré aucun produit ni service. Veuillez vérifier que les données BMC/inputs contiennent des informations sur vos activités.");
     }
 
+    // ── Expand condensed AI output to full per_year format ────────────
+    console.log("[generate-ovo-plan] Expanding condensed AI data...");
+    expandCondensedData(financialJson);
+
     // Bug #4: Normalize range data (shift r3/r2 → r1 if only one range used)
     normalizeRangeData(financialJson);
 
