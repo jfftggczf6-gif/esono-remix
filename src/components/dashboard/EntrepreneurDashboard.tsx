@@ -695,7 +695,7 @@ export default function EntrepreneurDashboard() {
       const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Erreur'); }
       const blob = await response.blob();
-      const ext = format === 'csv' ? '.csv' : format === 'json' ? '.json' : format === 'xlsx' ? '.xlsx' : '.html';
+      const ext = format === 'csv' ? '.csv' : format === 'json' ? '.json' : format === 'xlsx' ? ((type === 'odd_analysis' || type === 'plan_ovo') ? '.xlsm' : '.xlsx') : '.html';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `${enterprise.name.replace(/[^a-zA-Z0-9]/g, '_')}_${type}${ext}`;
@@ -1211,18 +1211,22 @@ export default function EntrepreneurDashboard() {
                           onClick={async () => {
                             const oddExcel = deliverables.find((d: any) => d.type === 'odd_excel');
                             const fileName = (oddExcel?.data as any)?.file_name;
-                            if (fileName) {
-                              const { data: signedData, error: signedErr } = await supabase.storage
-                                .from('ovo-outputs')
-                                .createSignedUrl(fileName, 3600);
-                              if (!signedErr && signedData?.signedUrl) {
-                                handleDownloadOvoFile(signedData.signedUrl);
-                              } else {
-                                toast.error('Erreur lors de la création du lien de téléchargement');
-                              }
-                            } else {
+
+                            if (!fileName) {
                               toast.error('Fichier ODD Excel introuvable');
+                              return;
                             }
+
+                            const { data: signedData, error: signedErr } = await supabase.storage
+                              .from('ovo-outputs')
+                              .createSignedUrl(fileName, 3600);
+
+                            if (!signedErr && signedData?.signedUrl) {
+                              await handleDownloadOvoFile(signedData.signedUrl);
+                              return;
+                            }
+
+                            await handleDownload('odd_analysis', 'xlsx');
                           }}
                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
                         >
