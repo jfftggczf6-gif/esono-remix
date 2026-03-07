@@ -499,8 +499,12 @@ serve(async (req) => {
     console.log("[BP] Merged, generating Word document...");
 
     // Generate Word document
-    const docxBytes = await generateWordDoc(bpJson);
-    console.log("[BP] Word document generated:", docxBytes.length, "bytes");
+    const rawDocxBytes = await generateWordDoc(bpJson);
+    console.log("[BP] Word document generated:", rawDocxBytes.length, "bytes");
+
+    // Strip Custom XML Parts to avoid Word warning
+    const docxBytes = await stripCustomXml(rawDocxBytes);
+    console.log("[BP] Custom XML stripped:", docxBytes.length, "bytes");
 
     // Upload to storage
     const supabaseAdmin = createClient(
