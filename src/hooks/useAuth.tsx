@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
   const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState(false);
+  const skipRoleFetch = useRef(false);
 
   const fetchUserData = async (userId: string) => {
     const [profileRes, roleRes] = await Promise.all([
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Fire and forget — no await to avoid deadlock
+        if (skipRoleFetch.current) return;
         setRoleLoading(true);
         fetchUserData(session.user.id).finally(() => setRoleLoading(false));
       } else {
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, selectedRole?: AppRole) => {
+    skipRoleFetch.current = true;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -77,8 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: window.location.origin,
       },
     });
-    if (error) throw error;
-    // With auto-confirm, user is immediately authenticated — set role now
+    if (error) {
+      skipRoleFetch.current = false;
+      throw error;
+    }
     if (data.user) {
       const role = selectedRole || 'entrepreneur';
       await supabase.from('user_roles').upsert(
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setRoleState(role);
     }
+    skipRoleFetch.current = false;
   };
 
   const signIn = async (email: string, password: string) => {
