@@ -52,6 +52,7 @@ interface CellWrite {
   col: number;   // 1-indexé : A=1, B=2, ..., Z=26, AA=27 ...
   value: string | number | null;
   type: "string" | "number" | "date";
+  forceWrite?: boolean; // If true, overwrite formula cells instead of preserving them
 }
 
 // ─────────────────────────────────────────────────────────────────────
