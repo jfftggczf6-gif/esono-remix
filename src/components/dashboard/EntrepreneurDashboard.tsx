@@ -909,7 +909,7 @@ export default function EntrepreneurDashboard() {
       <div className="fixed bottom-20 left-0 z-50 px-4">
         <Button
           size="lg"
-          onClick={handleGenerate}
+          onClick={() => handleGenerate(true)}
           disabled={generating}
           className="gap-3 rounded-xl shadow-lg bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-white px-5 py-3 h-auto"
         >
