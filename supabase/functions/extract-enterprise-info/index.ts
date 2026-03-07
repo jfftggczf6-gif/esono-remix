@@ -56,9 +56,9 @@ serve(async (req) => {
       return jsonResponse({ name: null, country: null, sector: null });
     }
 
-    // Call Anthropic API to extract enterprise info
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) return errorResponse("ANTHROPIC_API_KEY not configured", 500);
+    // Call Lovable AI gateway (Gemini) for lightweight extraction
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) return errorResponse("LOVABLE_API_KEY not configured", 500);
 
     const systemPrompt = `Tu es un extracteur d'informations d'entreprise. Analyse les documents fournis et extrais :
 1. Le nom exact de l'entreprise (tel qu'il apparaît dans les documents)
@@ -70,34 +70,38 @@ Réponds UNIQUEMENT avec un JSON valide, sans markdown ni texte autour :
 
 Si une information n'est pas trouvable, mets null pour ce champ.`;
 
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: `Extrais les informations de l'entreprise depuis ces documents :\n\n${documentContent.substring(0, 15000)}`
-          }
-        ],
-      }),
-    });
+    const aiPayload = {
+      model: "google/gemini-2.5-flash-lite",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Extrais les informations de l'entreprise depuis ces documents :\n\n${documentContent.substring(0, 15000)}` }
+      ],
+      max_tokens: 512,
+    };
 
-    if (!aiResponse.ok) {
+    let content = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const aiResponse = await fetch("https://ai.lovable.dev/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(aiPayload),
+      });
+
+      if (aiResponse.ok) {
+        const aiResult = await aiResponse.json();
+        content = aiResult.choices?.[0]?.message?.content || "";
+        break;
+      }
+
       const errBody = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errBody);
-      return errorResponse("Erreur d'extraction IA", 500);
+      console.error(`AI attempt ${attempt + 1} error:`, aiResponse.status, errBody);
+      if (attempt === 1) return errorResponse("Erreur d'extraction IA", 500);
+      // Wait 2s before retry
+      await new Promise(r => setTimeout(r, 2000));
     }
-
-    const aiResult = await aiResponse.json();
-    const content = aiResult.content?.[0]?.text || "";
 
     try {
       let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
