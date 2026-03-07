@@ -1095,6 +1095,35 @@ export default function CoachDashboard() {
                             onClick={() => { setSelectedModule(mod.code); setDetailTab('livrables'); }}>
                             <Eye className="h-3 w-3 mr-1" /> Voir
                           </Button>
+                          {/* Download buttons per format */}
+                          <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+                            onClick={() => handleDownloadCoach(DELIV_MAP[mod.code], 'html', ent.id)}>
+                            <Download className="h-3 w-3" /> HTML
+                          </Button>
+                          {mod.code === 'framework' && (
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+                              onClick={() => handleDownloadCoach('framework_data', 'xlsx', ent.id)}>
+                              <Download className="h-3 w-3" /> XLSX
+                            </Button>
+                          )}
+                          {mod.code === 'plan_ovo' && entDelivs.find((x: any) => x.type === 'plan_ovo_excel') && (
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+                              onClick={() => handleDownloadOvoCoach(ent.id, entDelivs)}>
+                              <Download className="h-3 w-3" /> XLSM
+                            </Button>
+                          )}
+                          {mod.code === 'business_plan' && d.data?._meta?.download_url && (
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+                              onClick={() => handleDownloadBpWordCoach(d.data._meta.download_url, ent.name)}>
+                              <Download className="h-3 w-3" /> DOCX
+                            </Button>
+                          )}
+                          {mod.code === 'odd' && entDelivs.find((x: any) => x.type === 'odd_excel') && (
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+                              onClick={() => handleDownloadOddExcelCoach(entDelivs)}>
+                              <Download className="h-3 w-3" /> XLSM
+                            </Button>
+                          )}
                           {!isShared && (
                             <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1 text-purple-600 border-purple-200"
                               disabled={sharingId === d.id}
