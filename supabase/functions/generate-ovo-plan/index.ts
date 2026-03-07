@@ -1255,9 +1255,9 @@ function buildCellWrites(json: Record<string, any>): CellWrite[] {
   const writes: CellWrite[] = [];
 
   // Helper pour ajouter une cellule
-  function w(sheet: string, row: number, col: string, value: string | number | null, type: CellWrite["type"] = "number") {
+  function w(sheet: string, row: number, col: string, value: string | number | null, type: CellWrite["type"] = "number", forceWrite = false) {
     if (value === null || value === undefined) return;
-    writes.push({ sheet, row, col: COL[col], value, type });
+    writes.push({ sheet, row, col: COL[col], value, type, forceWrite });
   }
 
   // Helper pour écrire 10 valeurs dans les colonnes O→X
