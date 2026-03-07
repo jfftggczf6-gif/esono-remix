@@ -273,21 +273,59 @@ export async function callAI(systemPrompt: string, userPrompt: string) {
         .replace(/,\s*]/g, "]")
         .replace(/[\x00-\x1F\x7F]/g, "");
 
-      // Attempt to fix truncated JSON by closing open braces/brackets
-      const openBraces = (cleaned.match(/{/g) || []).length;
-      const closeBraces = (cleaned.match(/}/g) || []).length;
-      const openBrackets = (cleaned.match(/\[/g) || []).length;
-      const closeBrackets = (cleaned.match(/\]/g) || []).length;
+      // Attempt to fix truncated JSON
+      let openBraces = (cleaned.match(/{/g) || []).length;
+      let closeBraces = (cleaned.match(/}/g) || []).length;
+      let openBrackets = (cleaned.match(/\[/g) || []).length;
+      let closeBrackets = (cleaned.match(/\]/g) || []).length;
 
       if (openBrackets > closeBrackets || openBraces > closeBraces) {
-        console.warn("Truncated JSON detected, attempting repair...");
-        // Remove trailing incomplete value
-        cleaned = cleaned.replace(/,\s*"[^"]*"?\s*:?\s*[^}\]]*$/, "");
+        console.warn("Truncated JSON detected, attempting deep repair...");
+        
+        // Close any unclosed string (find last unescaped quote)
+        const quoteCount = (cleaned.match(/(?<!\\)"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          cleaned += '"';
+        }
+        
+        // Remove trailing incomplete key-value patterns
+        cleaned = cleaned
+          .replace(/,\s*"[^"]*"\s*:\s*"[^"]*$/, "")  // truncated string value
+          .replace(/,\s*"[^"]*"\s*:\s*$/, "")          // key with no value
+          .replace(/,\s*"[^"]*$/, "")                   // truncated key
+          .replace(/,\s*$/, "");                         // trailing comma
+        
+        // Recount after cleanup
+        openBraces = (cleaned.match(/{/g) || []).length;
+        closeBraces = (cleaned.match(/}/g) || []).length;
+        openBrackets = (cleaned.match(/\[/g) || []).length;
+        closeBrackets = (cleaned.match(/\]/g) || []).length;
+        
         for (let i = 0; i < openBrackets - closeBrackets; i++) cleaned += "]";
         for (let i = 0; i < openBraces - closeBraces; i++) cleaned += "}";
       }
 
-      return JSON.parse(cleaned);
+      try {
+        return JSON.parse(cleaned);
+      } catch (e2: any) {
+        // Last resort: progressively trim from end until parseable
+        console.warn("Deep repair failed, trying progressive trim...");
+        let trimmed = cleaned;
+        for (let i = 0; i < 20; i++) {
+          trimmed = trimmed.replace(/,?\s*"[^"]*"?\s*:?\s*[^{}\[\],"]*\s*[}\]]?\s*$/, "");
+          const ob = (trimmed.match(/{/g) || []).length;
+          const cb = (trimmed.match(/}/g) || []).length;
+          const oq = (trimmed.match(/\[/g) || []).length;
+          const cq = (trimmed.match(/\]/g) || []).length;
+          let attempt = trimmed;
+          for (let j = 0; j < oq - cq; j++) attempt += "]";
+          for (let j = 0; j < ob - cb; j++) attempt += "}";
+          try {
+            return JSON.parse(attempt);
+          } catch { continue; }
+        }
+        throw e2;
+      }
     }
   } catch (e: any) {
     if (e.status) throw e;
