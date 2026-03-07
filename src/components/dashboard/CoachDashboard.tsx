@@ -8,9 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, Building2, CheckCircle2, Clock, ChevronRight, LayoutGrid, Globe, BarChart3, Stethoscope, ListChecks, FileText, Target, Download, Sparkles, Loader2, X } from 'lucide-react';
+import { Users, Building2, CheckCircle2, Clock, ChevronRight, LayoutGrid, Globe, BarChart3, Stethoscope, ListChecks, FileText, Target, Download, Sparkles, Loader2, X, FileBarChart } from 'lucide-react';
 import BmcViewer from './BmcViewer';
+import SicViewer from './SicViewer';
 import DeliverableViewer from './DeliverableViewer';
+import BusinessPlanPreview from './BusinessPlanPreview';
 import { toast } from 'sonner';
 
 const MODULE_CONFIG = [
