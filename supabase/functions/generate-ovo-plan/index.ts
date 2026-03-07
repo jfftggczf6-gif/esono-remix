@@ -876,10 +876,42 @@ function expandCondensedData(json: Record<string, any>): void {
 
 // deno-lint-ignore no-explicit-any
 function expandProductOrService(p: any): any {
-  // Skip if already in full per_year format (backward compatibility)
-  if (p.per_year && Array.isArray(p.per_year) && p.per_year.length >= 4) return p;
-
   const yearLabels = ["YEAR-2","YEAR-1","CURRENT YEAR","YEAR2","YEAR3","YEAR4","YEAR5","YEAR6"];
+
+  // If already has full 8-entry per_year, keep but validate volumes
+  if (p.per_year && Array.isArray(p.per_year) && p.per_year.length >= 8) {
+    // Still validate: if future years have zero volumes, fill them
+    return { ...p, per_year: repairPerYearVolumes(p.per_year, p.growth_rate || 0.15) };
+  }
+
+  // If partial per_year (4-7 entries from truncated AI), extrapolate missing years
+  if (p.per_year && Array.isArray(p.per_year) && p.per_year.length >= 4 && p.per_year.length < 8) {
+    console.log(`[expand] Product "${p.name}": partial per_year (${p.per_year.length}/8), extrapolating...`);
+    const existing = p.per_year;
+    const lastEntry = existing[existing.length - 1];
+    const g = p.growth_rate || 0.15;
+    const pg = p.price_growth || 0.03;
+    
+    while (existing.length < 8) {
+      const idx = existing.length;
+      const prevEntry = existing[existing.length - 1];
+      const totalVol = (prevEntry.volume_h1 || 0) + (prevEntry.volume_h2 || 0);
+      const newVol = Math.round(totalVol * (1 + g));
+      const newEntry = { ...prevEntry };
+      newEntry.year = yearLabels[idx];
+      newEntry.volume_h1 = Math.round(newVol * 0.45);
+      newEntry.volume_h2 = Math.round(newVol * 0.55);
+      // Grow prices
+      for (const k of ['unit_price_r1', 'unit_price_r2', 'unit_price_r3']) {
+        if (newEntry[k]) newEntry[k] = Math.round(newEntry[k] * (1 + pg) / 1000) * 1000;
+      }
+      for (const k of ['cogs_r1', 'cogs_r2', 'cogs_r3']) {
+        if (newEntry[k]) newEntry[k] = Math.round(newEntry[k] * (1 + pg) / 1000) * 1000;
+      }
+      existing.push(newEntry);
+    }
+    return { ...p, per_year: repairPerYearVolumes(existing, g) };
+  }
 
   if (!p.active) {
     return { ...p, per_year: yearLabels.map(y => ({
@@ -935,6 +967,41 @@ function expandProductOrService(p: any): any {
   });
 
   return { ...p, per_year };
+}
+
+/**
+ * Repair per_year volumes: if active product has zero volumes in future years
+ * (YEAR2-YEAR6) while CURRENT YEAR has volumes, extrapolate using growth_rate.
+ */
+// deno-lint-ignore no-explicit-any
+function repairPerYearVolumes(perYear: any[], growthRate: number): any[] {
+  if (!perYear || perYear.length < 3) return perYear;
+  
+  // Find CURRENT YEAR entry (index 2)
+  const cyEntry = perYear.find((e: any) => e.year === "CURRENT YEAR") || perYear[2];
+  const cyVolume = (cyEntry?.volume_h1 || 0) + (cyEntry?.volume_h2 || 0);
+  if (cyVolume === 0) return perYear; // No base volume to extrapolate from
+  
+  const g = growthRate || 0.15;
+  let lastKnownVolume = cyVolume;
+  
+  // Check YEAR2 through YEAR6 (indices 3-7)
+  for (let i = 3; i < perYear.length && i < 8; i++) {
+    const entry = perYear[i];
+    const vol = (entry.volume_h1 || 0) + (entry.volume_h2 || 0);
+    if (vol > 0) {
+      lastKnownVolume = vol;
+    } else {
+      // Zero volume in future year — extrapolate
+      const newVol = Math.round(lastKnownVolume * (1 + g));
+      entry.volume_h1 = Math.round(newVol * 0.45);
+      entry.volume_h2 = Math.round(newVol * 0.55);
+      lastKnownVolume = newVol;
+      console.warn(`[repairVolumes] Fixed zero volume at ${entry.year}: h1=${entry.volume_h1}, h2=${entry.volume_h2}`);
+    }
+  }
+  
+  return perYear;
 }
 
 // deno-lint-ignore no-explicit-any
