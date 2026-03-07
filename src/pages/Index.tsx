@@ -127,7 +127,7 @@ export default function Index() {
       <section className="container py-16">
         <div className="text-center mb-12">
           <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Architecture</p>
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">8 Modules Séquentiels</h2>
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">7 Modules Séquentiels</h2>
           <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
             Les modules 1-2 sont hybrides (micro-learning + IA + coaching). Les modules 3-7 sont générés automatiquement par l'IA.
           </p>
