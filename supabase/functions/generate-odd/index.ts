@@ -169,11 +169,25 @@ serve(async (req) => {
     await saveDeliverable(ctx.supabase, ctx.enterprise_id, "odd_analysis", data, "odd");
     console.log(`[generate-odd] ✅ odd_analysis sauvegardé (${(data as any).metadata?.total_cibles_evaluees} cibles)`);
 
-    // Generate Excel (non-blocking)
+    // Generate Excel (non-blocking) — upload to storage instead of base64
     let excelGenerated = false;
     try {
       const xlsxBytes = await fillOddExcelTemplate(data, ent.name, ctx.supabase);
-      const xlsxB64 = btoa(String.fromCharCode(...xlsxBytes));
+      const fileName = `odd_${ctx.enterprise_id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.xlsx`;
+
+      const { error: uploadErr } = await ctx.supabase.storage
+        .from("ovo-outputs")
+        .upload(fileName, xlsxBytes, {
+          contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          cacheControl: "no-store",
+          upsert: true,
+        });
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = ctx.supabase.storage.from("ovo-outputs").getPublicUrl(fileName);
+      const fileUrl = urlData?.publicUrl
+        ? urlData.publicUrl
+        : `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/authenticated/ovo-outputs/${fileName}`;
 
       await ctx.supabase.from("deliverables").upsert({
         enterprise_id: ctx.enterprise_id,
@@ -181,15 +195,16 @@ serve(async (req) => {
         data: {
           generated_at: new Date().toISOString(),
           template: "ODD_template.xlsx",
-          size_bytes: xlsxBytes.byteLength
+          size_bytes: xlsxBytes.byteLength,
+          file_name: fileName,
         },
-        html_content: xlsxB64,
+        file_url: fileUrl,
         ai_generated: true,
         version: 1,
       }, { onConflict: "enterprise_id,type" });
 
       excelGenerated = true;
-      console.log(`[generate-odd] ✅ Excel généré (${xlsxBytes.byteLength} bytes)`);
+      console.log(`[generate-odd] ✅ Excel uploadé: ${fileName} (${xlsxBytes.byteLength} bytes)`);
     } catch (xlsxErr: unknown) {
       console.warn("[generate-odd] Excel non-bloquant:", (xlsxErr as Error)?.message);
     }

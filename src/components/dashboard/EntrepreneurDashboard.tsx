@@ -39,7 +39,7 @@ const DELIVERABLE_CONFIG = [
   { type: 'diagnostic_data', label: 'Diagnostic Expert', formats: ['html', 'json'], icon: '🩺' },
   { type: 'plan_ovo', label: 'Plan Financier Final', formats: ['html', 'xlsx'], icon: '📋' },
   { type: 'business_plan', label: 'Business Plan', formats: ['html', 'json', 'docx'], icon: '📄' },
-  { type: 'odd_analysis', label: 'ODD (17 Objectifs de Développement Durable)', formats: ['html', 'json'], icon: '🌍' },
+  { type: 'odd_analysis', label: 'ODD (17 Objectifs de Développement Durable)', formats: ['html', 'json', 'xlsx'], icon: '🌍' },
 ];
 
 export default function EntrepreneurDashboard() {
@@ -922,6 +922,45 @@ export default function EntrepreneurDashboard() {
                         <Sparkles className="h-3.5 w-3.5" /> Générer le Business Plan
                       </button>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Green bar for ODD module */}
+            {selectedModule === 'odd' && (
+              <div className="mx-6 mt-4 mb-2 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Target className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-900">Évaluation ODD (Excel)</p>
+                      <p className="text-xs text-emerald-600">Template ODD rempli avec les évaluations de votre entreprise</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {deliverables.find((d: any) => d.type === 'odd_excel')?.file_url ? (
+                      <>
+                        <button
+                          onClick={() => handleDownloadOvoFile(deliverables.find((d: any) => d.type === 'odd_excel')?.file_url)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                        >
+                          <Download className="h-3.5 w-3.5" /> ODD Excel (.xlsx)
+                        </button>
+                        <button
+                          onClick={() => handleDownload('odd_analysis', 'html')}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-emerald-700 border border-emerald-300 text-xs font-semibold hover:bg-emerald-50 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Rapport HTML
+                        </button>
+                      </>
+                    ) : selectedDeliv?.data ? (
+                      <Badge variant="outline" className="text-xs text-emerald-600">
+                        <Clock className="h-3 w-3 mr-1" /> Excel sera généré à la prochaine génération
+                      </Badge>
+                    ) : null}
                   </div>
                 </div>
               </div>
