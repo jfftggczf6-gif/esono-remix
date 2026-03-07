@@ -56,22 +56,11 @@ serve(async (req) => {
       return jsonResponse({ name: null, country: null, sector: null });
     }
 
-    // Call Lovable AI to extract enterprise info
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return errorResponse("LOVABLE_API_KEY not configured", 500);
+    // Call Anthropic API to extract enterprise info
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) return errorResponse("ANTHROPIC_API_KEY not configured", 500);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `Tu es un extracteur d'informations d'entreprise. Analyse les documents fournis et extrais :
+    const systemPrompt = `Tu es un extracteur d'informations d'entreprise. Analyse les documents fournis et extrais :
 1. Le nom exact de l'entreprise (tel qu'il apparaît dans les documents)
 2. Le pays où l'entreprise est basée
 3. Le secteur d'activité principal
@@ -79,8 +68,20 @@ serve(async (req) => {
 Réponds UNIQUEMENT avec un JSON valide, sans markdown ni texte autour :
 {"name": "NOM EXACT", "country": "Pays", "sector": "Secteur d'activité"}
 
-Si une information n'est pas trouvable, mets null pour ce champ.`
-          },
+Si une information n'est pas trouvable, mets null pour ce champ.`;
+
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-3-haiku-20240307",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
           {
             role: "user",
             content: `Extrais les informations de l'entreprise depuis ces documents :\n\n${documentContent.substring(0, 15000)}`
@@ -92,14 +93,11 @@ Si une information n'est pas trouvable, mets null pour ce champ.`
     if (!aiResponse.ok) {
       const errBody = await aiResponse.text();
       console.error("AI error:", aiResponse.status, errBody);
-      if (aiResponse.status === 402) {
-        return errorResponse("Crédits IA insuffisants. Veuillez recharger vos crédits dans les paramètres du workspace.", 402);
-      }
       return errorResponse("Erreur d'extraction IA", 500);
     }
 
     const aiResult = await aiResponse.json();
-    const content = aiResult.choices?.[0]?.message?.content || "";
+    const content = aiResult.content?.[0]?.text || "";
 
     try {
       let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
