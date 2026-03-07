@@ -624,7 +624,6 @@ ${margeActivites.map((a: any, i: number) => {
   TOTAL CA = ${totalCA.toLocaleString('fr-FR')} FCFA
   ⚠️ La SOMME des CA par produit DOIT correspondre au revenue total par année.`;
   }
-  }
 
   // ── REVENUS HISTORIQUES (from previous plan_ovo) ──
   let historicalRevenueBlock = "";
