@@ -88,6 +88,34 @@ export default function EntrepreneurDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Auto-resume polling if OVO generation is stuck in "processing" on page load
+  useEffect(() => {
+    if (!enterprise || generatingOvoPlan) return;
+    const ovoDeliv = deliverables.find((d: any) => d.type === 'plan_ovo_excel');
+    const meta = ovoDeliv?.data as Record<string, any> | undefined;
+    if (meta?.status === 'processing' && meta?.request_id && meta?.started_at) {
+      const age = Date.now() - new Date(meta.started_at).getTime();
+      if (age < 10 * 60 * 1000) { // less than 10 min old
+        console.log('[OVO] Resuming polling for in-progress generation:', meta.request_id);
+        setGeneratingOvoPlan(true);
+        toast.info('Génération OVO en cours, reprise du suivi...');
+        pollForOvoCompletion(enterprise.id, meta.request_id, meta.started_at)
+          .then((polled) => {
+            if (polled) {
+              setOvoDownloadUrl(polled.url);
+              toast.success('Plan Financier OVO généré avec succès !');
+            }
+            fetchData();
+          })
+          .catch((err) => {
+            toast.error(err.message || 'La génération a échoué');
+          })
+          .finally(() => setGeneratingOvoPlan(false));
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enterprise?.id, deliverables.length]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, category: string) => {
     const files = e.target.files;
     if (!files || !enterprise) return;
