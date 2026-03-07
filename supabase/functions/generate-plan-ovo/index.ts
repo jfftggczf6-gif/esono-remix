@@ -43,21 +43,24 @@ function buildUserPrompt(name: string, sector: string, docs: string, allData: an
   const fw = allData.framework;
   if (fw?.projection_5ans?.lignes && Array.isArray(fw.projection_5ans.lignes)) {
     const lines = fw.projection_5ans.lignes;
-    const caLine = lines.find((l: any) => l.libelle?.toLowerCase().includes("chiffre") || l.libelle?.toLowerCase().includes("revenue") || l.libelle?.toLowerCase().includes("ca"));
-    const ebitdaLine = lines.find((l: any) => l.libelle?.toLowerCase().includes("ebitda"));
-    const rnLine = lines.find((l: any) => l.libelle?.toLowerCase().includes("résultat net") || l.libelle?.toLowerCase().includes("resultat net"));
+    const label = (l: any) => (l.poste || l.libelle || '').toLowerCase();
+    const caLine = lines.find((l: any) => { const lb = label(l); return lb.includes("ca total") || lb.includes("chiffre") || lb.includes("revenue"); });
+    const ebitdaLine = lines.find((l: any) => label(l).includes("ebitda"));
+    const rnLine = lines.find((l: any) => { const lb = label(l); return lb.includes("résultat net") || lb.includes("resultat net"); });
+    const mbLine = lines.find((l: any) => { const lb = label(l); return lb.includes("marge brute") || lb.includes("gross"); });
+    const cfLine = lines.find((l: any) => { const lb = label(l); return lb.includes("cash") || lb.includes("trésorerie"); });
 
-    if (caLine || ebitdaLine) {
-      frameworkConstraints = `\nCONTRAINTES DU PLAN FINANCIER INTERMÉDIAIRE (à respecter):`;
-      if (caLine) {
-        frameworkConstraints += `\n- CA projeté: an1(${cy+1})=${caLine.an1 || '?'}, an2(${cy+2})=${caLine.an2 || '?'}, an3(${cy+3})=${caLine.an3 || '?'}, an4(${cy+4})=${caLine.an4 || '?'}, an5(${cy+5})=${caLine.an5 || '?'}`;
-      }
-      if (ebitdaLine) {
-        frameworkConstraints += `\n- EBITDA projeté: an1=${ebitdaLine.an1 || '?'}, an2=${ebitdaLine.an2 || '?'}, an3=${ebitdaLine.an3 || '?'}, an4=${ebitdaLine.an4 || '?'}, an5=${ebitdaLine.an5 || '?'}`;
-      }
-      if (rnLine) {
-        frameworkConstraints += `\n- Résultat net projeté: an1=${rnLine.an1 || '?'}, an2=${rnLine.an2 || '?'}, an3=${rnLine.an3 || '?'}, an4=${rnLine.an4 || '?'}, an5=${rnLine.an5 || '?'}`;
-      }
+    const found = [caLine, ebitdaLine, rnLine, mbLine, cfLine].filter(Boolean);
+    if (found.length > 0) {
+      frameworkConstraints = `\nCONTRAINTES OBLIGATOIRES DU PLAN FINANCIER INTERMÉDIAIRE (respecter ces valeurs exactes pour les projections):`;
+      const fmtLine = (name: string, line: any) => {
+        return `\n- ${name}: year2(${cy+1})=${line.an1 ?? '?'}, year3(${cy+2})=${line.an2 ?? '?'}, year4(${cy+3})=${line.an3 ?? '?'}, year5(${cy+4})=${line.an4 ?? '?'}, year6(${cy+5})=${line.an5 ?? '?'}`;
+      };
+      if (caLine) frameworkConstraints += fmtLine("Revenue (CA)", caLine);
+      if (mbLine) frameworkConstraints += fmtLine("Marge Brute", mbLine);
+      if (ebitdaLine) frameworkConstraints += fmtLine("EBITDA", ebitdaLine);
+      if (rnLine) frameworkConstraints += fmtLine("Résultat Net", rnLine);
+      if (cfLine) frameworkConstraints += fmtLine("Cash-Flow", cfLine);
     }
   }
 
