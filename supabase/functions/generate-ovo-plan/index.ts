@@ -171,7 +171,7 @@ Deno.serve(async (req: Request) => {
     try {
     // ── Étape 1 : Appel Claude API ─────────────────────────────────────
     console.log("[generate-ovo-plan] Calling Claude API...");
-    const financialJson = await callClaudeAPI(data);
+    const financialJson = await callClaudeAPI(data, supabase, enterpriseId, requestId);
 
     // ── Validation post-IA : vérifier products/services ────────────────
     const aiProducts = Array.isArray(financialJson.products) ? financialJson.products.filter((p: any) => p.active !== false) : [];
