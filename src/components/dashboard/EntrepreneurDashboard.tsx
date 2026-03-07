@@ -923,6 +923,8 @@ export default function EntrepreneurDashboard() {
                   <BmcViewer data={selectedDeliv.data} />
                 ) : selectedModule === 'sic' ? (
                   <SicViewer data={selectedDeliv.data} />
+                ) : selectedModule === 'business_plan' ? (
+                  <BusinessPlanPreview data={selectedDeliv.data as Record<string, any>} />
                 ) : (
                   <DeliverableViewer moduleCode={selectedModule} data={selectedDeliv.data} />
                 )}
