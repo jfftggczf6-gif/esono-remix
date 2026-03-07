@@ -1195,7 +1195,22 @@ export default function EntrepreneurDashboard() {
                     {deliverables.find((d: any) => d.type === 'odd_excel')?.file_url ? (
                       <>
                         <button
-                          onClick={() => handleDownloadOvoFile(deliverables.find((d: any) => d.type === 'odd_excel')?.file_url)}
+                          onClick={async () => {
+                            const oddExcel = deliverables.find((d: any) => d.type === 'odd_excel');
+                            const fileName = (oddExcel?.data as any)?.file_name;
+                            if (fileName) {
+                              const { data: signedData, error: signedErr } = await supabase.storage
+                                .from('ovo-outputs')
+                                .createSignedUrl(fileName, 3600);
+                              if (!signedErr && signedData?.signedUrl) {
+                                handleDownloadOvoFile(signedData.signedUrl);
+                              } else {
+                                toast.error('Erreur lors de la création du lien de téléchargement');
+                              }
+                            } else {
+                              toast.error('Fichier ODD Excel introuvable');
+                            }
+                          }}
                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
                         >
                           <Download className="h-3.5 w-3.5" /> ODD Excel (.xlsm)
