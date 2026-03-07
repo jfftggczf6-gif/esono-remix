@@ -802,6 +802,210 @@ JSON SCHEMA CONDENSÉ ATTENDU :
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// EXPANSION DES DONNÉES CONDENSÉES → FORMAT COMPLET per_year
+// ─────────────────────────────────────────────────────────────────────
+
+// deno-lint-ignore no-explicit-any
+function expandCondensedData(json: Record<string, any>): void {
+  if (Array.isArray(json.products)) {
+    json.products = json.products.map((p: any) => expandProductOrService(p));
+  }
+  if (Array.isArray(json.services)) {
+    json.services = json.services.map((s: any) => expandProductOrService(s));
+  }
+  if (Array.isArray(json.staff)) {
+    json.staff = json.staff.map((c: any) => expandStaffCategory(c));
+  }
+  if (json.opex && typeof json.opex === 'object') {
+    json.opex = expandOpex(json.opex);
+  }
+  console.log(`[expand] Products: ${(json.products||[]).filter((p:any)=>p.per_year?.length).length} expanded, Staff: ${(json.staff||[]).filter((s:any)=>s.per_year?.length).length} expanded`);
+}
+
+// deno-lint-ignore no-explicit-any
+function expandProductOrService(p: any): any {
+  // Skip if already in full per_year format (backward compatibility)
+  if (p.per_year && Array.isArray(p.per_year) && p.per_year.length >= 4) return p;
+
+  const yearLabels = ["YEAR-2","YEAR-1","CURRENT YEAR","YEAR2","YEAR3","YEAR4","YEAR5","YEAR6"];
+
+  if (!p.active) {
+    return { ...p, per_year: yearLabels.map(y => ({
+      year: y, unit_price_r1:0, unit_price_r2:0, unit_price_r3:0,
+      mix_r1:0, mix_r2:0, mix_r3:0, cogs_r1:0, cogs_r2:0, cogs_r3:0,
+      mix_r1_ch1:0, mix_r2_ch1:0, mix_r3_ch1:0,
+      mix_r1_ch2:0, mix_r2_ch2:0, mix_r3_ch2:0,
+      volume_h1:0, volume_h2:0, volume_q3:0, volume_q4:0,
+    }))};
+  }
+
+  const priceCY = p.price_cy || 0;
+  const cogsRate = p.cogs_rate || 0.35;
+  const volYM2 = p.volume_ym2 || 0;
+  const volYM1 = p.volume_ym1 || 0;
+  const volCY = p.volume_cy || 0;
+  const g = p.growth_rate || 0.15;
+  const pg = p.price_growth || 0.03;
+  const rf = p.range_flags || [1, 0, 0];
+  const cf = p.channel_flags || [0, 1];
+
+  const yearConfigs = [
+    { year: "YEAR-2", volume: volYM2, pMul: 1/((1+pg)*(1+pg)) },
+    { year: "YEAR-1", volume: volYM1, pMul: 1/(1+pg) },
+    { year: "CURRENT YEAR", volume: volCY, pMul: 1 },
+    { year: "YEAR2", volume: Math.round(volCY*(1+g)), pMul: 1+pg },
+    { year: "YEAR3", volume: Math.round(volCY*Math.pow(1+g,2)), pMul: Math.pow(1+pg,2) },
+    { year: "YEAR4", volume: Math.round(volCY*Math.pow(1+g,3)), pMul: Math.pow(1+pg,3) },
+    { year: "YEAR5", volume: Math.round(volCY*Math.pow(1+g,4)), pMul: Math.pow(1+pg,4) },
+    { year: "YEAR6", volume: Math.round(volCY*Math.pow(1+g,5)), pMul: Math.pow(1+pg,5) },
+  ];
+
+  // Channel mix from flags
+  const totalCh = (cf[0]||0) + (cf[1]||0) || 1;
+  const mixCh1 = (cf[0]||0) / totalCh;
+  const mixCh2 = (cf[1]||0) / totalCh;
+
+  const per_year = yearConfigs.map(yc => {
+    const price = Math.round(priceCY * yc.pMul / 1000) * 1000;
+    const cogs = Math.round(price * cogsRate / 1000) * 1000;
+    const vol_h1 = Math.round(yc.volume * 0.45);
+    const vol_h2 = Math.round(yc.volume * 0.55);
+
+    return {
+      year: yc.year,
+      unit_price_r1: rf[0] ? price : 0, unit_price_r2: rf[1] ? price : 0, unit_price_r3: rf[2] ? price : 0,
+      mix_r1: rf[0] ? 1.0 : 0, mix_r2: rf[1] ? 1.0 : 0, mix_r3: rf[2] ? 1.0 : 0,
+      cogs_r1: rf[0] ? cogs : 0, cogs_r2: rf[1] ? cogs : 0, cogs_r3: rf[2] ? cogs : 0,
+      mix_r1_ch1: rf[0] ? mixCh1 : 0, mix_r2_ch1: rf[1] ? mixCh1 : 0, mix_r3_ch1: rf[2] ? mixCh1 : 0,
+      mix_r1_ch2: rf[0] ? mixCh2 : 0, mix_r2_ch2: rf[1] ? mixCh2 : 0, mix_r3_ch2: rf[2] ? mixCh2 : 0,
+      volume_h1: vol_h1, volume_h2: vol_h2, volume_q3: 0, volume_q4: 0,
+    };
+  });
+
+  return { ...p, per_year };
+}
+
+// deno-lint-ignore no-explicit-any
+function expandStaffCategory(cat: any): any {
+  if (cat.per_year && Array.isArray(cat.per_year) && cat.per_year.length >= 4) return cat;
+
+  const hc = cat.headcount_by_year || [0,0,0,0,0,0,0,0];
+  const salaryCY = cat.monthly_salary_cy || 0;
+  const sg = cat.salary_growth || 0.05;
+  const allowCY = cat.annual_allowances_cy || 0;
+
+  const yearLabels = ["YEAR-2","YEAR-1","CURRENT YEAR","YEAR2","YEAR3","YEAR4","YEAR5","YEAR6"];
+  const salaryMults = [
+    1/((1+sg)*(1+sg)), 1/(1+sg), 1,
+    1+sg, Math.pow(1+sg,2), Math.pow(1+sg,3), Math.pow(1+sg,4), Math.pow(1+sg,5),
+  ];
+
+  const per_year = yearLabels.map((year, i) => ({
+    year,
+    headcount: hc[i] || 0,
+    gross_monthly_salary_per_person: Math.round(salaryCY * salaryMults[i] / 1000) * 1000,
+    annual_allowances_per_person: Math.round(allowCY * salaryMults[i] / 1000) * 1000,
+  }));
+
+  return { ...cat, per_year };
+}
+
+// Default subcategory splits for OPEX categories
+const OPEX_SPLITS: Record<string, Record<string, number>> = {
+  marketing: { research: 0.15, purchase_studies: 0.05, receptions: 0.20, documentation: 0.10, advertising: 0.50 },
+  taxes_on_staff: { salaries_tax: 0.70, apprenticeship: 0.10, training: 0.15, other: 0.05 },
+  office: { rent: 0.35, internet: 0.12, telecom: 0.10, supplies: 0.10, fuel: 0.08, water: 0.05, electricity: 0.15, cleaning: 0.05 },
+  other: { health: 0.50, directors: 0.30, donations: 0.20 },
+  insurance: { building: 0.30, company: 0.70 },
+  maintenance: { movable: 0.60, other: 0.40 },
+  third_parties: { legal: 0.25, accounting: 0.30, transport: 0.20, commissions: 0.15, delivery: 0.10 },
+};
+
+// deno-lint-ignore no-explicit-any
+function expandOpex(opex: any): any {
+  const result: any = {};
+
+  for (const [category, catData] of Object.entries(opex)) {
+    // Travel is special
+    if (category === 'travel') {
+      result.travel = expandTravelOpex(catData);
+      continue;
+    }
+
+    // If already in expanded format (subcategories have arrays), keep as-is
+    if (catData && typeof catData === 'object' && !Array.isArray(catData)) {
+      const vals = Object.values(catData as Record<string, unknown>);
+      if (vals.length > 0 && Array.isArray(vals[0])) {
+        result[category] = catData;
+        continue;
+      }
+    }
+
+    // Condensed format: { total_cy, growth, split? }
+    const cd = catData as any;
+    if (!cd || typeof cd !== 'object' || cd.total_cy === undefined) {
+      result[category] = catData;
+      continue;
+    }
+
+    const totalCY = cd.total_cy || 0;
+    const growth = cd.growth || 0.05;
+    const splits = cd.split || OPEX_SPLITS[category] || {};
+
+    const expanded: Record<string, number[]> = {};
+    for (const [subKey, ratio] of Object.entries(splits)) {
+      const subCY = Math.round(totalCY * (ratio as number) / 1000) * 1000;
+      expanded[subKey] = buildOpexTimeSeries(subCY, growth);
+    }
+
+    result[category] = expanded;
+  }
+
+  return result;
+}
+
+// deno-lint-ignore no-explicit-any
+function expandTravelOpex(travel: any): any {
+  if (!travel || typeof travel !== 'object') return travel;
+  if (Array.isArray(travel.nb_travellers)) return travel; // already expanded
+
+  const nbCY = travel.nb_travellers_cy || 0;
+  const avgCY = travel.avg_cost_cy || 0;
+  const growth = travel.growth || 0.05;
+
+  return {
+    nb_travellers: buildOpexTimeSeriesInt(nbCY, growth),
+    avg_cost: buildOpexTimeSeries(avgCY, growth),
+  };
+}
+
+function buildOpexTimeSeries(valueCY: number, growth: number): number[] {
+  const ym2 = Math.round(valueCY / Math.pow(1+growth, 2) / 1000) * 1000;
+  const ym1 = Math.round(valueCY / (1+growth) / 1000) * 1000;
+  const h1 = Math.round(valueCY * 0.45 / 1000) * 1000;
+  const h2 = Math.round(valueCY * 0.55 / 1000) * 1000;
+  const cy = 0; // S column = formula in Excel
+  const vals = [ym2, ym1, h1, h2, cy];
+  for (let i = 1; i <= 5; i++) {
+    vals.push(Math.round(valueCY * Math.pow(1+growth, i) / 1000) * 1000);
+  }
+  return vals;
+}
+
+function buildOpexTimeSeriesInt(valueCY: number, growth: number): number[] {
+  const ym2 = Math.round(valueCY / Math.pow(1+growth, 2));
+  const ym1 = Math.round(valueCY / (1+growth));
+  const h1 = Math.round(valueCY * 0.5);
+  const h2 = Math.round(valueCY * 0.5);
+  const cy = 0;
+  const vals = [ym2, ym1, h1, h2, cy];
+  for (let i = 1; i <= 5; i++) {
+    vals.push(Math.round(valueCY * Math.pow(1+growth, i)));
+  }
+  return vals;
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // BUG #4 FIX : NORMALISATION DES GAMMES DE PRIX
 // ─────────────────────────────────────────────────────────────────────
 
