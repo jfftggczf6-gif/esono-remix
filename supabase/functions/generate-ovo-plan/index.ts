@@ -554,6 +554,54 @@ function buildUserPrompt(data: EntrepreneurData): string {
   const bmcFlux = bmc.canvas?.flux_revenus || {};
   const prixMoyen = bmcFlux.prix_moyen || bmcFlux.prix_unitaire || 0;
   const volumeAnnuel = bmcFlux.volume_annuel || bmcFlux.volume_estime || 0;
+  const bmcSourcesRevenus = bmcFlux.sources_revenus || bmcFlux.sources || [];
+  const bmcModelePricing = bmcFlux.modele_pricing || bmcFlux.modele || '';
+  const bmcProduitPrincipal = bmcFlux.produit_principal || bmcFlux.produit || '';
+
+  // ── BMC detailed revenue streams ──
+  let bmcRevenueBlock = "";
+  if (bmcFlux && Object.keys(bmcFlux).length > 0) {
+    const parts = [];
+    if (bmcProduitPrincipal) parts.push(`  Produit principal: ${bmcProduitPrincipal}`);
+    if (bmcModelePricing) parts.push(`  Modèle pricing: ${bmcModelePricing}`);
+    if (prixMoyen > 0) parts.push(`  Prix moyen: ${prixMoyen.toLocaleString('fr-FR')} FCFA`);
+    if (volumeAnnuel > 0) parts.push(`  Volume annuel estimé: ${volumeAnnuel.toLocaleString('fr-FR')}`);
+    if (Array.isArray(bmcSourcesRevenus) && bmcSourcesRevenus.length > 0) {
+      parts.push(`  Sources de revenus: ${bmcSourcesRevenus.map((s: any) => typeof s === 'string' ? s : s.nom || s.name || JSON.stringify(s)).join(', ')}`);
+    }
+    if (parts.length > 0) {
+      bmcRevenueBlock = `\nFLUX DE REVENUS (BMC — utiliser pour déduire prix de vente et volumes) :\n${parts.join('\n')}`;
+    }
+  }
+
+  // ── Inputs financiers détaillés ──
+  let inputsDetailBlock = "";
+  if (cr && Object.keys(cr).length > 0) {
+    const lines = [];
+    if (cr.chiffre_affaires || cr.ca) lines.push(`  Chiffre d'affaires: ${(cr.chiffre_affaires || cr.ca || 0).toLocaleString('fr-FR')} FCFA`);
+    if (cr.achats_matieres || cr.achats) lines.push(`  Achats matières: ${(cr.achats_matieres || cr.achats || 0).toLocaleString('fr-FR')} FCFA`);
+    if (cr.charges_personnel || cr.salaires) lines.push(`  Charges personnel: ${(cr.charges_personnel || cr.salaires || 0).toLocaleString('fr-FR')} FCFA`);
+    if (cr.charges_externes) lines.push(`  Charges externes: ${(cr.charges_externes || 0).toLocaleString('fr-FR')} FCFA`);
+    if (cr.dotations_amortissements) lines.push(`  Dotations amortissements: ${(cr.dotations_amortissements || 0).toLocaleString('fr-FR')} FCFA`);
+    if (cr.resultat_exploitation) lines.push(`  Résultat exploitation: ${(cr.resultat_exploitation || 0).toLocaleString('fr-FR')} FCFA`);
+    if (cr.resultat_net) lines.push(`  Résultat net: ${(cr.resultat_net || 0).toLocaleString('fr-FR')} FCFA`);
+    if (lines.length > 0) {
+      inputsDetailBlock = `\nCOMPTE DE RÉSULTAT DÉTAILLÉ (Inputs financiers — données réelles à respecter) :\n${lines.join('\n')}`;
+    }
+  }
+  // Bilan résumé from inputs
+  const bilan = inp.bilan || inp.balance_sheet || {};
+  let bilanBlock = "";
+  if (bilan && Object.keys(bilan).length > 0) {
+    const parts = [];
+    if (bilan.total_actif) parts.push(`  Total actif: ${bilan.total_actif.toLocaleString('fr-FR')} FCFA`);
+    if (bilan.capitaux_propres) parts.push(`  Capitaux propres: ${bilan.capitaux_propres.toLocaleString('fr-FR')} FCFA`);
+    if (bilan.dettes) parts.push(`  Dettes: ${bilan.dettes.toLocaleString('fr-FR')} FCFA`);
+    if (bilan.tresorerie) parts.push(`  Trésorerie: ${bilan.tresorerie.toLocaleString('fr-FR')} FCFA`);
+    if (parts.length > 0) {
+      bilanBlock = `\nBILAN RÉSUMÉ (Inputs) :\n${parts.join('\n')}`;
+    }
+  }
 
   let revenueByProductBlock = "";
   if (margeActivites.length > 0) {
@@ -575,6 +623,7 @@ ${margeActivites.map((a: any, i: number) => {
 }).join("\n")}
   TOTAL CA = ${totalCA.toLocaleString('fr-FR')} FCFA
   ⚠️ La SOMME des CA par produit DOIT correspondre au revenue total par année.`;
+  }
   }
 
   // ── REVENUS HISTORIQUES (from previous plan_ovo) ──
