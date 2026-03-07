@@ -229,6 +229,71 @@ export function normalizeOdd(raw: any): any {
   return d;
 }
 
+// ===== PLAN OVO NORMALIZER =====
+export function normalizePlanOvo(raw: any): any {
+  if (!raw) return raw;
+  const d = { ...raw };
+  const YEAR_KEYS = ['year_minus_2', 'year_minus_1', 'current_year', 'year2', 'year3', 'year4', 'year5', 'year6'];
+
+  d.score = toNumber(pick(d, 'score', 'score_global'), 0);
+
+  // Fix years to be dynamic based on current year
+  const cy = new Date().getFullYear();
+  if (!d.years || d.years.current_year !== cy) {
+    d.base_year = cy;
+    d.years = {
+      year_minus_2: cy - 2,
+      year_minus_1: cy - 1,
+      current_year: cy,
+      year2: cy + 1,
+      year3: cy + 2,
+      year4: cy + 3,
+      year5: cy + 4,
+      year6: cy + 5,
+    };
+  }
+
+  // Ensure all year-series objects have all 8 keys
+  const seriesFields = ['revenue', 'cogs', 'gross_profit', 'gross_margin_pct', 'ebitda', 'ebitda_margin_pct', 'net_profit', 'cashflow'];
+  for (const field of seriesFields) {
+    if (!d[field]) d[field] = {};
+    for (const yk of YEAR_KEYS) {
+      d[field][yk] = toNumber(d[field][yk], 0);
+    }
+  }
+
+  // Ensure opex sub-categories have all 8 keys
+  if (d.opex) {
+    const opexFields = ['staff_salaries', 'marketing', 'office_costs', 'travel', 'insurance', 'maintenance', 'third_parties', 'other'];
+    for (const field of opexFields) {
+      if (!d.opex[field]) d.opex[field] = {};
+      for (const yk of YEAR_KEYS) {
+        d.opex[field][yk] = toNumber(d.opex[field][yk], 0);
+      }
+    }
+  }
+
+  // Recalculate gross_profit = revenue - cogs for consistency
+  for (const yk of YEAR_KEYS) {
+    const rev = d.revenue[yk];
+    const cogs = d.cogs[yk];
+    d.gross_profit[yk] = rev - cogs;
+    d.gross_margin_pct[yk] = rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
+  }
+
+  // Recalculate ebitda_margin_pct
+  for (const yk of YEAR_KEYS) {
+    const rev = d.revenue[yk];
+    d.ebitda_margin_pct[yk] = rev > 0 ? (d.ebitda[yk] / rev) * 100 : 0;
+  }
+
+  // Normalize recommandations
+  d.recommandations = toArray(pick(d, 'recommandations', 'recommendations'));
+  d.key_assumptions = toArray(pick(d, 'key_assumptions', 'hypotheses_cles'));
+
+  return d;
+}
+
 // ===== AUTO NORMALIZE BY TYPE =====
 export function normalizeByType(type: string, data: any): any {
   const normalizers: Record<string, (d: any) => any> = {
@@ -239,6 +304,7 @@ export function normalizeByType(type: string, data: any): any {
     diagnostic: normalizeDiagnostic, diagnostic_data: normalizeDiagnostic,
     business_plan: normalizeBusinessPlan,
     odd: normalizeOdd, odd_analysis: normalizeOdd,
+    plan_ovo: normalizePlanOvo,
   };
 
   const normalizer = normalizers[type];
