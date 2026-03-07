@@ -212,7 +212,7 @@ export default function Index() {
         <div className="container py-10">
           <div className="flex flex-wrap justify-center gap-12 text-center">
             {[
-              { value: '8', unit: 'modules', label: 'Parcours séquentiel' },
+              { value: '7', unit: 'modules', label: 'Parcours séquentiel' },
               { value: 'TVA 18%', unit: '', label: 'IS 25% • Charges 25%' },
               { value: 'XOF', unit: 'FCFA', label: 'Devise par défaut' },
               { value: 'IA', unit: '+ Coach', label: 'Double validation' },
