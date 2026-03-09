@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, saveDeliverable } from "../_shared/helpers.ts";
+import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, saveDeliverable, buildRAGContext } from "../_shared/helpers.ts";
 import { normalizePlanOvo, enforceFrameworkConstraints } from "../_shared/normalizers.ts";
 
 const SYSTEM_PROMPT = `Tu es un modélisateur financier senior spécialisé dans les PME africaines (focus: Côte d'Ivoire, Afrique de l'Ouest).
@@ -169,9 +169,12 @@ serve(async (req) => {
       bmc: ctx.deliverableMap["bmc_analysis"] || {},
     };
 
+    // RAG: enrichir avec benchmarks et fiscal
+    const ragContext = await buildRAGContext(ctx.supabase, ent.country || "", ent.sector || "", ["benchmarks", "fiscal", "bailleurs"]);
+
     const rawData = await callAI(SYSTEM_PROMPT, buildUserPrompt(
       ent.name, ent.sector || "", ctx.documentContent, allData
-    ));
+    ) + ragContext);
     
     // Normalize: fix years, ensure consistency, fill gaps
     let data = normalizePlanOvo(rawData);

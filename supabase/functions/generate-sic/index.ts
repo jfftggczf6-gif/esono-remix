@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, saveDeliverable } from "../_shared/helpers.ts";
+import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, saveDeliverable, buildRAGContext } from "../_shared/helpers.ts";
 import { normalizeSic } from "../_shared/normalizers.ts";
 
 const SYSTEM_PROMPT = `Tu es un expert en Impact Investing et évaluation ESG (Environnement, Social, Gouvernance) spécialisé dans les PME en Afrique de l'Ouest (UEMOA / Côte d'Ivoire).
@@ -185,9 +185,12 @@ serve(async (req) => {
     const ent = ctx.enterprise;
     const bmcData = ctx.deliverableMap["bmc_analysis"] || ctx.moduleMap["bmc"] || {};
 
+    // RAG: enrichir avec données ODD et impact social
+    const ragContext = await buildRAGContext(ctx.supabase, ent.country || "", ent.sector || "", ["odd", "bailleurs", "secteurs"]);
+
     const rawData = await callAI(SYSTEM_PROMPT, userPrompt(
       ent.name, ent.sector || "", ent.country || "", ctx.documentContent, bmcData
-    ));
+    ) + ragContext);
 
     // Ensure score field is set for saveDeliverable
     rawData.score = rawData.score_global || rawData.score || 0;
