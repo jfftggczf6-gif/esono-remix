@@ -475,15 +475,18 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
   const AN_KEYS = ['an1', 'an2', 'an3', 'an4', 'an5'];
 
   // Helper: find a ligne by label patterns
-  const findLigne = (...patterns: string[]) => {
+  // Helper: find a ligne by label patterns, optionally excluding patterns containing certain strings
+  const findLigne = (excludePatterns: string[] = [], ...patterns: string[]) => {
     return lignes.find((l: any) => {
       const lb = (l.poste || l.libelle || '').toLowerCase();
+      if (excludePatterns.some(ex => lb.includes(ex))) return false;
       return patterns.some(p => lb.includes(p));
     });
   };
 
-  const caLine = findLigne('ca total', 'chiffre', 'revenue', 'ca ');
-  const mbLine = findLigne('marge brute', 'gross');
+  const caLine = findLigne([], 'ca total', 'chiffre', 'revenue', 'ca ');
+  // Exclude lines containing '%' to avoid confusing amounts with percentages
+  const mbLine = findLigne(['%', '(%)'], 'marge brute', 'gross');
   const ebitdaLine = findLigne('ebitda');
   const rnLine = findLigne('résultat net', 'resultat net', 'net profit');
   const cfLine = findLigne('cash', 'trésorerie', 'tresorerie');
