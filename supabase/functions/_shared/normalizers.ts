@@ -81,6 +81,7 @@ export function normalizeSic(raw: any): any {
   if (!raw) return raw;
   const d = { ...raw };
   d.score = toNumber(pick(d, 'score', 'score_global', 'score_sic'), 0);
+  d.score_global = d.score;
 
   // Normalize ODD alignment
   if (d.odd_alignment) {
