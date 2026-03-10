@@ -12,10 +12,10 @@ const PIPELINE_STEPS = [
   { name: "SIC", function: "generate-sic" },
   { name: "Inputs", function: "generate-inputs" },
   { name: "Framework", function: "generate-framework" },
-  { name: "Diagnostic", function: "generate-diagnostic" },
   { name: "Plan OVO", function: "generate-plan-ovo" },
   { name: "Business Plan", function: "generate-business-plan" },
   { name: "ODD", function: "generate-odd" },
+  { name: "Diagnostic", function: "generate-diagnostic" },
 ];
 
 serve(async (req) => {
@@ -57,9 +57,17 @@ serve(async (req) => {
       .select("type, data")
       .eq("enterprise_id", enterprise_id);
 
+    const toNumber = (v: any) => { const n = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]/g, '')) : Number(v); return isNaN(n) ? 0 : n; };
     const richTypes = new Set(
       (existingDeliverables || [])
-        .filter((d: any) => d.data && typeof d.data === "object" && (d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.resume_executif || d.data.checklist))
+        .filter((d: any) => {
+          if (!d.data || typeof d.data !== "object") return false;
+          // For inputs_data, require chiffre_affaires > 0 to be considered "rich"
+          if (d.type === "inputs_data") {
+            return d.data.compte_resultat && toNumber(d.data.compte_resultat.chiffre_affaires) > 0;
+          }
+          return (d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.resume_executif || d.data.checklist);
+        })
         .map((d: any) => d.type)
     );
 

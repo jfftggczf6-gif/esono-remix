@@ -2,6 +2,7 @@
  * Normalizers for AI JSON responses
  * Handles key variations from different AI model outputs
  */
+import { getFiscalParams } from "./helpers.ts";
 
 // ===== GENERIC HELPERS =====
 function pick(obj: any, ...keys: string[]): any {
@@ -130,22 +131,30 @@ export function normalizeInputs(raw: any): any {
   const rawBilan = d.bilan || d.balance_sheet || d.bilan_comptable || {};
   const rawActif = rawBilan.actif || rawBilan.assets || rawBilan.asset || {};
   const rawPassif = rawBilan.passif || rawBilan.liabilities || rawBilan.passifs || {};
-  d.bilan = {
-    actif: {
-      immobilisations: toNumber(pick(rawActif, 'immobilisations', 'fixed_assets', 'immo')),
-      stocks: toNumber(pick(rawActif, 'stocks', 'inventories', 'inventory')),
-      creances_clients: toNumber(pick(rawActif, 'creances_clients', 'créances_clients', 'receivables', 'creances')),
-      tresorerie: toNumber(pick(rawActif, 'tresorerie', 'trésorerie', 'cash', 'disponibilites')),
-      total_actif: toNumber(pick(rawActif, 'total_actif', 'total_assets', 'total')),
-    },
-    passif: {
-      capitaux_propres: toNumber(pick(rawPassif, 'capitaux_propres', 'equity', 'fonds_propres')),
-      dettes_lt: toNumber(pick(rawPassif, 'dettes_lt', 'long_term_debt', 'dettes_long_terme')),
-      dettes_ct: toNumber(pick(rawPassif, 'dettes_ct', 'short_term_debt', 'dettes_court_terme')),
-      fournisseurs: toNumber(pick(rawPassif, 'fournisseurs', 'payables', 'accounts_payable')),
-      total_passif: toNumber(pick(rawPassif, 'total_passif', 'total_liabilities', 'total')),
-    },
+  const actif = {
+    immobilisations: toNumber(pick(rawActif, 'immobilisations', 'fixed_assets', 'immo')),
+    stocks: toNumber(pick(rawActif, 'stocks', 'inventories', 'inventory')),
+    creances_clients: toNumber(pick(rawActif, 'creances_clients', 'créances_clients', 'receivables', 'creances')),
+    tresorerie: toNumber(pick(rawActif, 'tresorerie', 'trésorerie', 'cash', 'disponibilites')),
+    total_actif: toNumber(pick(rawActif, 'total_actif', 'total_assets', 'total')),
   };
+  const passif = {
+    capitaux_propres: toNumber(pick(rawPassif, 'capitaux_propres', 'equity', 'fonds_propres')),
+    dettes_lt: toNumber(pick(rawPassif, 'dettes_lt', 'long_term_debt', 'dettes_long_terme')),
+    dettes_ct: toNumber(pick(rawPassif, 'dettes_ct', 'short_term_debt', 'dettes_court_terme')),
+    fournisseurs: toNumber(pick(rawPassif, 'fournisseurs', 'payables', 'accounts_payable')),
+    total_passif: toNumber(pick(rawPassif, 'total_passif', 'total_liabilities', 'total')),
+  };
+
+  // Validation: Total Actif == Total Passif
+  if (actif.total_actif > 0 && passif.total_passif > 0 && actif.total_actif !== passif.total_passif) {
+    console.warn(`[normalizeInputs] Bilan déséquilibré: Actif=${actif.total_actif}, Passif=${passif.total_passif}. Ajustement au max.`);
+    const maxTotal = Math.max(actif.total_actif, passif.total_passif);
+    actif.total_actif = maxTotal;
+    passif.total_passif = maxTotal;
+  }
+
+  d.bilan = { actif, passif };
 
   // Normalize effectifs
   const rawEff = d.effectifs || d.employees || d.staff || {};
@@ -439,7 +448,7 @@ export function normalizePlanOvo(raw: any): any {
  * Overwrites Plan OVO projection years (year2-year6) with exact Framework values
  * and recalculates all derived fields deterministically.
  */
-export function enforceFrameworkConstraints(data: any, frameworkData: any, inputsData?: any): any {
+export function enforceFrameworkConstraints(data: any, frameworkData: any, inputsData?: any, country?: string): any {
   if (!data || !frameworkData?.projection_5ans?.lignes) return data;
 
   // ── Anchor current_year on real Inputs data (not AI-hallucinated) ──
@@ -508,17 +517,13 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
   overwrite(data.net_profit, rnLine);
   overwrite(data.cashflow, cfLine);
 
-  // If no cashflow line from Framework, derive cashflow from net_profit + estimated amortizations
+  // If no cashflow line from Framework, derive cashflow = EBITDA × (1 - taux_IS/100)
   if (!cfLine && data.net_profit && data.cashflow) {
-    // Estimate amortization as ~15% of CAPEX or difference between EBITDA and net_profit (simplified)
+    const { tauxIS } = getFiscalParams(country || "Côte d'Ivoire");
     for (const yk of PROJ_KEYS) {
       const ebitda = data.ebitda[yk] || 0;
-      const netProfit = data.net_profit[yk] || 0;
-      // cashflow ≈ net_profit + (ebitda - net_profit) * 0.5 (rough: half of depreciation+tax gap goes back to cash)
-      // More accurate: cashflow ≈ EBITDA - taxes, where taxes ≈ EBITDA - net_profit - depreciation
-      // Simplified: cashflow ≈ net_profit + depreciation ≈ net_profit + (ebitda - net_profit) * 0.4
-      const depreciation = (ebitda - netProfit) * 0.4;
-      data.cashflow[yk] = Math.round(netProfit + (depreciation > 0 ? depreciation : 0));
+      // cashflow ≈ EBITDA × (1 - IS%) — approximation simplifiée sans amortissements
+      data.cashflow[yk] = Math.round(ebitda * (1 - tauxIS / 100));
     }
   }
 
