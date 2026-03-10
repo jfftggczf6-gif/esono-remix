@@ -1308,9 +1308,9 @@ export default function CoachDashboard() {
                           <div className="flex items-center gap-2">
                             {generatingModuleCoach === 'business_plan' ? (
                               <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-semibold"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération en cours… (30-90s)</div>
-                            ) : selectedDeliv?.data?._meta?.download_url ? (
+                            ) : (selectedDeliv?.data as any)?._meta?.download_url ? (
                               <>
-                                <button onClick={() => handleDownloadBpWordCoach(selectedDeliv.data._meta.download_url, ent.name)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm"><Download className="h-3.5 w-3.5" /> Télécharger Word (.docx)</button>
+                                <button onClick={() => handleDownloadBpWordCoach((selectedDeliv?.data as any)._meta.download_url, ent.name)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm"><Download className="h-3.5 w-3.5" /> Télécharger Word (.docx)</button>
                                 <button onClick={() => handleGenerateModuleCoach('business_plan', ent.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-indigo-700 border border-indigo-300 text-xs font-semibold hover:bg-indigo-50 transition-colors"><Sparkles className="h-3.5 w-3.5" /> Regénérer</button>
                               </>
                             ) : (
