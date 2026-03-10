@@ -12,10 +12,10 @@ const PIPELINE_STEPS = [
   { name: "SIC", function: "generate-sic" },
   { name: "Inputs", function: "generate-inputs" },
   { name: "Framework", function: "generate-framework" },
-  { name: "Diagnostic", function: "generate-diagnostic" },
   { name: "Plan OVO", function: "generate-plan-ovo" },
   { name: "Business Plan", function: "generate-business-plan" },
   { name: "ODD", function: "generate-odd" },
+  { name: "Diagnostic", function: "generate-diagnostic" },
 ];
 
 serve(async (req) => {
