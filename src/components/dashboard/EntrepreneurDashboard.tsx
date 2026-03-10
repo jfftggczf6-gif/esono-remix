@@ -613,7 +613,7 @@ export default function EntrepreneurDashboard() {
         company: enterprise.name,
         country: enterprise.country || "IVORY COAST",
         sector: enterprise.sector || "",
-        business_model: bmcData?.canvas?.proposition_valeur?.enonce || bmcData?.business_model || bmcData?.proposition_valeur || "",
+        business_model: (bmcData as any)?.canvas?.proposition_valeur?.enonce || (bmcData as any)?.business_model || (bmcData as any)?.proposition_valeur || "",
         current_year: new Date().getFullYear(),
         employees: enterprise.employees_count || 0,
         existing_revenue: existingRevenue,
