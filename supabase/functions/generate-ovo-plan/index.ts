@@ -194,6 +194,24 @@ Deno.serve(async (req: Request) => {
     // Scale volumes to align Excel revenues with Framework/plan_ovo targets
     scaleToFrameworkTargets(financialJson, data.framework_data, data.plan_ovo_data);
 
+    // Apply Framework constraints to ensure Excel data matches JSON Plan OVO
+    if (data.framework_data && financialJson.revenue) {
+      try {
+        const constrainedData = enforceFrameworkConstraints(financialJson, data.framework_data, data.inputs_data);
+        // Merge back constrained financial aggregates
+        if (constrainedData.revenue) financialJson.revenue = constrainedData.revenue;
+        if (constrainedData.cogs) financialJson.cogs = constrainedData.cogs;
+        if (constrainedData.gross_profit) financialJson.gross_profit = constrainedData.gross_profit;
+        if (constrainedData.ebitda) financialJson.ebitda = constrainedData.ebitda;
+        if (constrainedData.net_profit) financialJson.net_profit = constrainedData.net_profit;
+        if (constrainedData.cashflow) financialJson.cashflow = constrainedData.cashflow;
+        if (constrainedData.investment_metrics) financialJson.investment_metrics = constrainedData.investment_metrics;
+        console.log("[generate-ovo-plan] Framework constraints applied to Excel data");
+      } catch (e) {
+        console.warn("[generate-ovo-plan] Failed to apply framework constraints:", e);
+      }
+    }
+
     // Bug #7: Sort products/services by slot for consistent ordering
     if (Array.isArray(financialJson.products)) {
       financialJson.products.sort((a: any, b: any) => (a.slot || 0) - (b.slot || 0));
