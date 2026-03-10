@@ -520,7 +520,7 @@ export default function EntrepreneurDashboard() {
         }
 
         // 3. BMC canvas: flux_revenus, proposition_valeur
-        const canvas = bmcData?.canvas || {};
+        const canvas: any = bmcData?.canvas || {};
         const items: Array<{ name: string; description: string; price?: number; deduit_du_bmc?: boolean }> = [];
 
         if (canvas.flux_revenus) {
