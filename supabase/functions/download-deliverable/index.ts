@@ -1334,8 +1334,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const url = new URL(req.url);
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const tokenParam = url.searchParams.get("token");
+    const jwt = authHeader?.replace("Bearer ", "") || tokenParam;
+    if (!jwt) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -1344,7 +1347,7 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || serviceKey;
 
     const anonClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
     });
     const { data: { user }, error: userErr } = await anonClient.auth.getUser();
     if (userErr || !user) {
