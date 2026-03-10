@@ -543,7 +543,7 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     const cfValues = PROJ_KEYS.map((yk, i) => data.cashflow[yk] / Math.pow(1 + discountRate, i + 1));
     data.investment_metrics.van = Math.round(cfValues.reduce((a: number, b: number) => a + b, 0) - initialInv);
 
-    // IRR approximation (Newton-Raphson)
+    // IRR approximation (Newton-Raphson) with safety bounds
     let irr = 0.1;
     for (let iter = 0; iter < 50; iter++) {
       let npv = -initialInv;
@@ -555,9 +555,10 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
       }
       if (Math.abs(dnpv) < 1e-10) break;
       irr = irr - npv / dnpv;
+      if (isNaN(irr) || irr < -0.99 || irr > 10) { irr = 0; break; }
       if (Math.abs(npv) < 1000) break;
     }
-    data.investment_metrics.tri = Math.round(irr * 10000) / 10000;
+    data.investment_metrics.tri = isNaN(irr) ? 0 : Math.round(irr * 10000) / 10000;
 
     // CAGR Revenue — current_year to year6 = 6 years span
     const revCY = data.revenue.current_year;
