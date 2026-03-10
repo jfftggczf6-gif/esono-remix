@@ -130,22 +130,30 @@ export function normalizeInputs(raw: any): any {
   const rawBilan = d.bilan || d.balance_sheet || d.bilan_comptable || {};
   const rawActif = rawBilan.actif || rawBilan.assets || rawBilan.asset || {};
   const rawPassif = rawBilan.passif || rawBilan.liabilities || rawBilan.passifs || {};
-  d.bilan = {
-    actif: {
-      immobilisations: toNumber(pick(rawActif, 'immobilisations', 'fixed_assets', 'immo')),
-      stocks: toNumber(pick(rawActif, 'stocks', 'inventories', 'inventory')),
-      creances_clients: toNumber(pick(rawActif, 'creances_clients', 'créances_clients', 'receivables', 'creances')),
-      tresorerie: toNumber(pick(rawActif, 'tresorerie', 'trésorerie', 'cash', 'disponibilites')),
-      total_actif: toNumber(pick(rawActif, 'total_actif', 'total_assets', 'total')),
-    },
-    passif: {
-      capitaux_propres: toNumber(pick(rawPassif, 'capitaux_propres', 'equity', 'fonds_propres')),
-      dettes_lt: toNumber(pick(rawPassif, 'dettes_lt', 'long_term_debt', 'dettes_long_terme')),
-      dettes_ct: toNumber(pick(rawPassif, 'dettes_ct', 'short_term_debt', 'dettes_court_terme')),
-      fournisseurs: toNumber(pick(rawPassif, 'fournisseurs', 'payables', 'accounts_payable')),
-      total_passif: toNumber(pick(rawPassif, 'total_passif', 'total_liabilities', 'total')),
-    },
+  const actif = {
+    immobilisations: toNumber(pick(rawActif, 'immobilisations', 'fixed_assets', 'immo')),
+    stocks: toNumber(pick(rawActif, 'stocks', 'inventories', 'inventory')),
+    creances_clients: toNumber(pick(rawActif, 'creances_clients', 'créances_clients', 'receivables', 'creances')),
+    tresorerie: toNumber(pick(rawActif, 'tresorerie', 'trésorerie', 'cash', 'disponibilites')),
+    total_actif: toNumber(pick(rawActif, 'total_actif', 'total_assets', 'total')),
   };
+  const passif = {
+    capitaux_propres: toNumber(pick(rawPassif, 'capitaux_propres', 'equity', 'fonds_propres')),
+    dettes_lt: toNumber(pick(rawPassif, 'dettes_lt', 'long_term_debt', 'dettes_long_terme')),
+    dettes_ct: toNumber(pick(rawPassif, 'dettes_ct', 'short_term_debt', 'dettes_court_terme')),
+    fournisseurs: toNumber(pick(rawPassif, 'fournisseurs', 'payables', 'accounts_payable')),
+    total_passif: toNumber(pick(rawPassif, 'total_passif', 'total_liabilities', 'total')),
+  };
+
+  // Validation: Total Actif == Total Passif
+  if (actif.total_actif > 0 && passif.total_passif > 0 && actif.total_actif !== passif.total_passif) {
+    console.warn(`[normalizeInputs] Bilan déséquilibré: Actif=${actif.total_actif}, Passif=${passif.total_passif}. Ajustement au max.`);
+    const maxTotal = Math.max(actif.total_actif, passif.total_passif);
+    actif.total_actif = maxTotal;
+    passif.total_passif = maxTotal;
+  }
+
+  d.bilan = { actif, passif };
 
   // Normalize effectifs
   const rawEff = d.effectifs || d.employees || d.staff || {};
