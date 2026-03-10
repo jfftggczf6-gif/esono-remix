@@ -107,13 +107,15 @@ export default function EntrepreneurDashboard() {
 
     if (ent) {
       setEnterprise(ent);
-      const [modsRes, delivRes, filesRes] = await Promise.all([
+      const [modsRes, delivRes, filesRes, histRes] = await Promise.all([
         supabase.from('enterprise_modules').select('*').eq('enterprise_id', ent.id),
         supabase.from('deliverables').select('*').eq('enterprise_id', ent.id),
         supabase.storage.from('documents').list(ent.id),
+        supabase.from('score_history').select('*').eq('enterprise_id', ent.id).order('created_at', { ascending: true }),
       ]);
       setModules(modsRes.data || []);
       setDeliverables(delivRes.data || []);
+      setScoreHistory(histRes.data || []);
       setUploadedFiles((filesRes.data || []).map((f: any) => ({ name: f.name, size: f.metadata?.size || 0 })));
     }
     setInitialLoading(false);
