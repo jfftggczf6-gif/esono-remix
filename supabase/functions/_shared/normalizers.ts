@@ -376,6 +376,18 @@ export function normalizeOdd(raw: unknown): Record<string, unknown> {
       contribution_globale: synthese?.contribution_globale ?? "",
       recommandations: Array.isArray(synthese?.recommandations) ? synthese!.recommandations : [],
     },
+    score: (() => {
+      const oddEntries = Object.values(resumeParOdd as Record<string, any>);
+      if (!oddEntries.length) return 0;
+      const scores = oddEntries.map((o: any) => typeof o?.score === 'number' ? o.score : 0);
+      return Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
+    })(),
+    score_global: (() => {
+      const oddEntries = Object.values(resumeParOdd as Record<string, any>);
+      if (!oddEntries.length) return 0;
+      const scores = oddEntries.map((o: any) => typeof o?.score === 'number' ? o.score : 0);
+      return Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
+    })(),
   };
 }
 
