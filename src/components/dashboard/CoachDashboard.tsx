@@ -1032,8 +1032,8 @@ export default function CoachDashboard() {
                           )}
                           {mod.code === 'odd' && entDelivs.find((x: any) => x.type === 'odd_excel') && (
                             <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
-                              onClick={() => handleDownloadOddExcelCoach(entDelivs)}>
-                              <Download className="h-3 w-3" /> XLSM
+                              onClick={() => handleDownloadOddExcelCoach(ent.id)}>
+                              <Download className="h-3 w-3" /> XLSX
                             </Button>
                           )}
                           {!isShared && (
