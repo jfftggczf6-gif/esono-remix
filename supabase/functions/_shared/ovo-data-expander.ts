@@ -201,7 +201,7 @@ function expandProductOrService(p: any): any {
       mix_r1:0, mix_r2:0, mix_r3:0, cogs_r1:0, cogs_r2:0, cogs_r3:0,
       mix_r1_ch1:0, mix_r2_ch1:0, mix_r3_ch1:0,
       mix_r1_ch2:0, mix_r2_ch2:0, mix_r3_ch2:0,
-      volume_h1:0, volume_h2:0, volume_q3:0, volume_q4:0,
+      volume_q1:0, volume_q2:0, volume_q3:0, volume_q4:0,
     }))};
   }
 
