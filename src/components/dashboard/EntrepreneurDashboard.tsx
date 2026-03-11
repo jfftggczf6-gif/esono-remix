@@ -91,6 +91,12 @@ export default function EntrepreneurDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Compute pipeline state whenever enterprise/deliverables change
+  useEffect(() => {
+    if (!enterprise) return;
+    getPipelineState(enterprise.id).then(setPipelineState);
+  }, [enterprise?.id, enterprise?.updated_at, deliverables.length]);
+
   // Ensure templates are uploaded to storage buckets (best-effort, silent)
   useEffect(() => {
     if (!user) return;
