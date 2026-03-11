@@ -26,7 +26,7 @@ import {
   type Enterprise, type Deliverable, type EnterpriseModule, type UploadedFile,
 } from '@/lib/dashboard-config';
 import { getValidAccessToken } from '@/lib/getValidAccessToken';
-import { runPipelineFromClient } from '@/lib/pipeline-runner';
+import { runPipelineFromClient, getPipelineState, type PipelineState } from '@/lib/pipeline-runner';
 
 export default function EntrepreneurDashboard() {
   const { user, profile, session: authSession, signOut } = useAuth();
