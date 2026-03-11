@@ -101,11 +101,11 @@ serve(async (req) => {
     for (const step of PIPELINE_STEPS) {
       const delivType = fnToDelivType[step.function];
       
-      // Never skip reconcile-plan-ovo — it must always run
-      const isReconcile = step.function === "reconcile-plan-ovo";
+      // Never skip reconcile-plan-ovo or generate-ovo-plan — they must always run
+      const isAlwaysRun = step.function === "reconcile-plan-ovo" || step.function === "generate-ovo-plan";
       
-      // Skip if rich data already exists (unless force=true or reconcile step)
-      if (!force && !isReconcile && delivType && richTypes.has(delivType)) {
+      // Skip if rich data already exists (unless force=true or always-run step)
+      if (!force && !isAlwaysRun && delivType && richTypes.has(delivType)) {
         console.log(`Skipping ${step.name}: rich data already exists`);
         results.push({ step: step.name, success: true, skipped: true });
         completedCount++;
