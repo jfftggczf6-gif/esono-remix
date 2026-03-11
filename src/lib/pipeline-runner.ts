@@ -86,9 +86,10 @@ export async function runPipelineFromClient(
       const timeoutMs = step.fn === 'generate-business-plan' ? 180000 : 120000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+      const currentToken = await getFreshToken();
       const response = await fetch(`${supabaseUrl}/functions/v1/${step.fn}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
         body: JSON.stringify({ enterprise_id: enterpriseId }),
         signal: controller.signal,
       });
