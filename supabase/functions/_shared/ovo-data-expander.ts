@@ -42,14 +42,7 @@ export function scaleToFrameworkTargets(json: Record<string, any>, frameworkData
     "YEAR2": "year2", "YEAR3": "year3", "YEAR4": "year4", "YEAR5": "year5", "YEAR6": "year6",
   };
 
-  const poRevenue = (planOvoData as any)?.revenue;
-  if (poRevenue && typeof poRevenue === 'object') {
-    for (const [yearLabel, jsonKey] of Object.entries(yearLabelToJsonKey)) {
-      const val = Number(poRevenue[jsonKey]);
-      if (val > 0) targets[yearLabel] = val;
-    }
-  }
-
+  // PRIMARY: Framework targets (source of truth for YEAR2-YEAR6)
   const fw = frameworkData as any;
   if (fw?.projection_5ans?.lignes && Array.isArray(fw.projection_5ans.lignes)) {
     const caLine = fw.projection_5ans.lignes.find((l: any) => {
@@ -61,11 +54,20 @@ export function scaleToFrameworkTargets(json: Record<string, any>, frameworkData
         "YEAR2": "an1", "YEAR3": "an2", "YEAR4": "an3", "YEAR5": "an4", "YEAR6": "an5",
       };
       for (const [yearLabel, fwKey] of Object.entries(fwMapping)) {
-        if (!targets[yearLabel]) {
-          const raw = caLine[fwKey];
-          const val = typeof raw === 'number' ? raw : parseFcfaValue(String(raw || ''));
-          if (val > 0) targets[yearLabel] = val;
-        }
+        const raw = caLine[fwKey];
+        const val = typeof raw === 'number' ? raw : parseFcfaValue(String(raw || ''));
+        if (val > 0) targets[yearLabel] = val;
+      }
+    }
+  }
+
+  // FALLBACK: planOvoData.revenue only for years NOT covered by Framework (YEAR-2, YEAR-1, CURRENT YEAR)
+  const poRevenue = (planOvoData as any)?.revenue;
+  if (poRevenue && typeof poRevenue === 'object') {
+    for (const [yearLabel, jsonKey] of Object.entries(yearLabelToJsonKey)) {
+      if (!targets[yearLabel]) {
+        const val = Number(poRevenue[jsonKey]);
+        if (val > 0) targets[yearLabel] = val;
       }
     }
   }
