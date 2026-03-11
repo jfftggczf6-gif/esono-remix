@@ -682,9 +682,10 @@ export default function EntrepreneurDashboard() {
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Erreur'); }
       const blob = await response.blob();
       const ext = format === 'csv' ? '.csv' : format === 'json' ? '.json' : format === 'xlsx' ? (type === 'plan_ovo' ? '.xlsm' : '.xlsx') : '.html';
+      const label = type === 'odd_analysis' && format === 'xlsx' ? 'ODD' : type;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${enterprise.name.replace(/[^a-zA-Z0-9]/g, '_')}_${type}${ext}`;
+      a.download = `${enterprise.name.replace(/[^a-zA-Z0-9]/g, '_')}_${label}${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
