@@ -553,14 +553,12 @@ export default function CoachDashboard() {
     }
   };
 
-  const handleDownloadOddExcelCoach = async (entDelivs: Deliverable[], enterpriseId?: string) => {
+  const handleDownloadOddExcelCoach = async (enterpriseId: string) => {
     try {
-      // Use the unified download-deliverable endpoint for ODD
-      const ent = enterprises.find((e) => e.id === enterpriseId) || (selectedEnterprise ? enterprises.find((e) => e.id === selectedEnterprise) : null);
-      const entId = enterpriseId || selectedEnterprise;
-      if (!entId) { toast.error('Entreprise introuvable'); return; }
+      const ent = enterprises.find((e) => e.id === enterpriseId) || selectedEnt;
+      if (!enterpriseId) { toast.error('Entreprise introuvable'); return; }
       const token = await getValidAccessToken(authSession);
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-deliverable?type=odd_analysis&enterprise_id=${entId}&format=xlsx`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-deliverable?type=odd_analysis&enterprise_id=${enterpriseId}&format=xlsx`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!response.ok) { const err = await response.json().catch(() => ({})); throw new Error((err as any).error || 'Erreur de téléchargement'); }
       const blob = await response.blob();
