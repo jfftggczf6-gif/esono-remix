@@ -30,17 +30,28 @@ function setCellInXml(
       !value.includes("/") &&
       !value.includes(" "));
 
-  const newCell = isNum
-    ? `<c r="${cellRef}"><v>${value}</v></c>`
-    : `<c r="${cellRef}" t="inlineStr"><is><t>${escapeXml(safeVal)}</t></is></c>`;
+  // Helper: extract existing style attribute s="X" from a cell tag
+  const extractStyle = (cellTag: string): string => {
+    const sMatch = cellTag.match(/\bs="(\d+)"/);
+    return sMatch ? ` s="${sMatch[1]}"` : "";
+  };
+
+  const buildCell = (style: string) => {
+    if (isNum) {
+      return `<c r="${cellRef}"${style}><v>${value}</v></c>`;
+    }
+    return `<c r="${cellRef}"${style} t="inlineStr"><is><t>${escapeXml(safeVal)}</t></is></c>`;
+  };
 
   // 1. Replace existing self-closing cell <c r="F10" s="5"/>
   const selfClosingRegex = new RegExp(
     `<c\\s[^>]*r="${cellRef}"[^/]*/\\s*>`,
     "s"
   );
-  if (selfClosingRegex.test(sheetXml)) {
-    return sheetXml.replace(selfClosingRegex, newCell);
+  const selfMatch = sheetXml.match(selfClosingRegex);
+  if (selfMatch) {
+    const style = extractStyle(selfMatch[0]);
+    return sheetXml.replace(selfClosingRegex, buildCell(style));
   }
 
   // 2. Replace existing cell with content <c r="F10" ...>...</c>
@@ -48,20 +59,22 @@ function setCellInXml(
     `<c\\s[^>]*r="${cellRef}"[^>]*>(?:(?!</c>).)*</c>`,
     "s"
   );
-  if (existingCellRegex.test(sheetXml)) {
-    return sheetXml.replace(existingCellRegex, newCell);
+  const existMatch = sheetXml.match(existingCellRegex);
+  if (existMatch) {
+    const style = extractStyle(existMatch[0]);
+    return sheetXml.replace(existingCellRegex, buildCell(style));
   }
 
   // 3. Insert into existing row
   const rowRegex = new RegExp(`(<row[^>]*\\br="${row}"[^>]*>)(.*?)(</row>)`, "s");
   if (rowRegex.test(sheetXml)) {
     return sheetXml.replace(rowRegex, (_, open, content, close) => {
-      return `${open}${content}${newCell}${close}`;
+      return `${open}${content}${buildCell("")}${close}`;
     });
   }
 
   // 4. Create the row
-  return sheetXml.replace("</sheetData>", `<row r="${row}">${newCell}</row></sheetData>`);
+  return sheetXml.replace("</sheetData>", `<row r="${row}">${buildCell("")}</row></sheetData>`);
 }
 
 // ===== SHARED STRINGS =====
@@ -222,11 +235,18 @@ function findTargetRows(
 // Columns: E=info_additionnelle, F=positif(1), G=neutre(1), H=negatif(1), I=besoin_aide(1)
 
 function fillTargetRow(sheetXml: string, cible: Record<string, string>, row: number): string {
+  // Write justification to column K (not E — E contains template guidance text)
   if (cible.justification || cible.info_additionnelle) {
     const info = cible.info_additionnelle || cible.justification || "";
-    sheetXml = setCellInXml(sheetXml, `E${row}`, info);
+    sheetXml = setCellInXml(sheetXml, `K${row}`, info);
   }
 
+  // Write optional additional remarks to column L
+  if (cible.remarques || cible.questions) {
+    sheetXml = setCellInXml(sheetXml, `L${row}`, cible.remarques || cible.questions || "");
+  }
+
+  // Evaluation columns F/G/H remain correct
   if (cible.evaluation === "positif") {
     sheetXml = setCellInXml(sheetXml, `F${row}`, 1);
   } else if (cible.evaluation === "neutre") {
@@ -350,8 +370,7 @@ export async function fillOddExcelTemplate(
     console.warn("[odd-excel] Feuille INDICATEURS non trouvée, ignorée");
   }
 
-  // Remove calcChain.xml to avoid inconsistencies — Excel will recalculate automatically
-  zip.remove("xl/calcChain.xml");
+  // Keep calcChain.xml to preserve formula calculations (column J scores)
 
   console.log(`[odd-excel] ✅ Template rempli pour "${enterpriseName}" (${matchedCount} cibles matchées)`);
   return await zip.generateAsync({
