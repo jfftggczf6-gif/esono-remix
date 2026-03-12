@@ -671,6 +671,16 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
   overwrite(data.net_profit, rnLine);
   overwrite(data.cashflow, cfLine);
 
+  // Guard: Résultat Net cannot exceed EBITDA (RN = EBITDA - Amort - Interest - Tax)
+  for (const yk of PROJ_KEYS) {
+    if (data.ebitda[yk] !== undefined && data.net_profit[yk] !== undefined) {
+      if (data.net_profit[yk] > data.ebitda[yk]) {
+        console.warn(`[enforceFramework] net_profit[${yk}]=${data.net_profit[yk]} > ebitda[${yk}]=${data.ebitda[yk]} — capping to EBITDA`);
+        data.net_profit[yk] = data.ebitda[yk];
+      }
+    }
+  }
+
   // If no cashflow line from Framework, derive cashflow = EBITDA × (1 - taux_IS/100)
   if (!cfLine && data.net_profit && data.cashflow) {
     const { is: tauxIS } = getFiscalParams(country || "Côte d'Ivoire");
@@ -796,8 +806,23 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     if (data.investment_metrics.cagr_revenue < 0.01 && revY6 > revCY * 1.5) {
       data.investment_metrics.cagr_revenue = Math.round((Math.pow(revY6 / revCY, 1 / 5) - 1) * 10000) / 10000;
     }
-    if (data.investment_metrics.cagr_ebitda < 0.01 && ebY6 > ebCY * 1.5) {
+    // Guard: CAGR EBITDA — if base (current_year) is negative, recalculate from year2→year6 or set null
+    if (ebCY <= 0) {
+      const ebY2 = data.ebitda[PROJ_KEYS[0]] || 0; // year2
+      if (ebY2 > 0 && ebY6 > 0 && ebY6 !== ebY2) {
+        // CAGR over 4 years (year2 → year6)
+        data.investment_metrics.cagr_ebitda = Math.round((Math.pow(ebY6 / ebY2, 1 / 4) - 1) * 10000) / 10000;
+      } else {
+        data.investment_metrics.cagr_ebitda = null;
+      }
+    } else if (data.investment_metrics.cagr_ebitda < 0.01 && ebY6 > ebCY * 1.5) {
       data.investment_metrics.cagr_ebitda = Math.round((Math.pow(ebY6 / ebCY, 1 / 5) - 1) * 10000) / 10000;
+    }
+    // Guard: DSCR and Multiple EBITDA are meaningless when year2 EBITDA is negative
+    const ebYear2 = data.ebitda[PROJ_KEYS[0]] || 0;
+    if (ebYear2 <= 0) {
+      data.investment_metrics.dscr = null;
+      data.investment_metrics.multiple_ebitda = null;
     }
     // Guard: TRI negative but VAN positive → retry Newton-Raphson with different seed
     if (data.investment_metrics.tri <= 0 && data.investment_metrics.van > 0) {
