@@ -119,7 +119,14 @@ function KpiCard({ label, value, icon }: { label: string; value: string; icon: s
   );
 }
 
-export default function PlanOvoViewer({ data }: { data: any }) {
+interface PlanOvoViewerProps {
+  data: any;
+  staleness?: { frameworkUpdatedAt?: string; planOvoUpdatedAt?: string };
+}
+
+export default function PlanOvoViewer({ data, staleness }: PlanOvoViewerProps) {
+  const isStale = staleness?.frameworkUpdatedAt && staleness?.planOvoUpdatedAt &&
+    new Date(staleness.frameworkUpdatedAt) > new Date(staleness.planOvoUpdatedAt);
   const years = data.years || {};
   const labels = YEAR_KEYS.map(k => yearLabel(k, years));
   const revSeries = getYearSeries(data.revenue);
@@ -237,6 +244,13 @@ export default function PlanOvoViewer({ data }: { data: any }) {
 
   return (
     <div className="space-y-5">
+      {/* Staleness warning */}
+      {isStale && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-xs text-yellow-700 dark:text-yellow-400">
+          ⚠️ Le Plan Financier Intermédiaire a été mis à jour depuis la dernière génération de ce plan.
+          Les données affichées peuvent ne plus être cohérentes. Veuillez régénérer le Plan Financier Final.
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -581,6 +581,14 @@ export function normalizePlanOvo(raw: any): any {
   d.recommandations = toArray(pick(d, 'recommandations', 'recommendations'));
   d.key_assumptions = toArray(pick(d, 'key_assumptions', 'hypotheses_cles'));
 
+  // Guard: DSCR and multiple_ebitda are meaningless when projection EBITDA is negative
+  const year2Ebitda = d.ebitda?.year2 ?? 0;
+  if (year2Ebitda <= 0 && d.investment_metrics) {
+    d.investment_metrics.dscr = null;
+    d.investment_metrics.multiple_ebitda = null;
+    console.warn(`[normalizePlanOvo] EBITDA year2=${year2Ebitda} <= 0 — forcing dscr & multiple_ebitda to null`);
+  }
+
   return d;
 }
 
@@ -615,6 +623,33 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     }
     if (data.revenue.current_year > 0) {
       data.ebitda_margin_pct.current_year = (data.ebitda.current_year / data.revenue.current_year) * 100;
+    }
+  }
+
+  // ── FIX: Revenue rescale if Framework > 3× Inputs réels ──
+  if (inputsData?.compte_resultat?.chiffre_affaires > 0 && data.revenue.current_year > 0) {
+    const inputsCA = data.revenue.current_year;
+    const fwYear2 = data.revenue.year2 || 0;
+    // Check AFTER overwrite would happen — peek at framework caLine
+    const caLinePeek = (frameworkData.projection_5ans.lignes || []).find((l: any) => {
+      const lb = (l.poste || l.libelle || '').toLowerCase();
+      return ['ca total', 'chiffre', 'revenue', 'ca ', 'total revenus', 'ventes totales', 'recettes', 'turnover', 'ventes'].some(p => lb.includes(p));
+    });
+    const fwYear2Peek = caLinePeek ? (Number(caLinePeek.an1) || 0) : fwYear2;
+    if (fwYear2Peek > 0 && fwYear2Peek / inputsCA > 3.0) {
+      const rescaleRatio = (inputsCA * 1.15) / fwYear2Peek;
+      console.warn(`[enforceFramework] Revenue rescale: fw_year2=${fwYear2Peek} vs inputs=${inputsCA} (ratio=${(fwYear2Peek/inputsCA).toFixed(1)}x) — rescaling by ${rescaleRatio.toFixed(2)}`);
+      const projSeries = ['revenue', 'gross_profit', 'ebitda', 'net_profit', 'cogs', 'cashflow'];
+      const PROJ_KEYS_RESCALE = ['year2', 'year3', 'year4', 'year5', 'year6'];
+      // Pre-rescale the framework lignes so that overwrite() picks up corrected values
+      for (const ligne of (frameworkData.projection_5ans.lignes || [])) {
+        const AN_KEYS_R = ['an1', 'an2', 'an3', 'an4', 'an5'];
+        for (const ak of AN_KEYS_R) {
+          if (typeof ligne[ak] === 'number') {
+            ligne[ak] = Math.round(ligne[ak] * rescaleRatio);
+          }
+        }
+      }
     }
   }
 

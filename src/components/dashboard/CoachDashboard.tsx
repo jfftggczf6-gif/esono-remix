@@ -765,7 +765,7 @@ export default function CoachDashboard() {
       if (selectedModule === 'bmc') return <BmcViewer data={deliv.data} />;
       if (selectedModule === 'sic') return <SicViewer data={deliv.data} />;
       if (selectedModule === 'business_plan') return <BusinessPlanPreview data={deliv.data as Record<string, any>} />;
-      return <DeliverableViewer moduleCode={selectedModule} data={deliv.data} />;
+      return <DeliverableViewer moduleCode={selectedModule} data={deliv.data} allDeliverables={entDelivs} />;
     };
 
     return (
