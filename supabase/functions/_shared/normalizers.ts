@@ -922,6 +922,20 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     }
   }
 
+  // ── FINAL GUARD: DSCR & Multiple EBITDA after all EBITDA mutations ──
+  const finalYear2Ebitda = data.ebitda?.year2 ?? 0;
+  if (data.investment_metrics) {
+    if (finalYear2Ebitda <= 0) {
+      data.investment_metrics.dscr = null;
+      data.investment_metrics.multiple_ebitda = null;
+      console.warn(`[enforceFramework] FINAL GUARD: EBITDA year2=${finalYear2Ebitda} <= 0 — dscr & multiple_ebitda nulled`);
+    }
+  }
+
+  // Stamp calculation version for staleness detection
+  data.metadata = data.metadata || {};
+  data.metadata.calculation_version = 2;
+
   // Update scenarios VAN/TRI with proper NPV/IRR recalculation
   if (data.scenarios && frameworkData.scenarios?.tableau) {
     const parseFcfa = (val: any): number => {

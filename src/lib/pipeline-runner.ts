@@ -215,5 +215,8 @@ export async function runPipelineFromClient(
 
   onProgress?.({ current: PIPELINE.length, total: PIPELINE.length, name: 'Terminé' });
 
-  return { completedCount, results, creditError };
+  const skippedCount = results.filter(r => r.skipped).length;
+  const executedCount = results.filter(r => r.success && !r.skipped).length;
+
+  return { completedCount, executedCount, skippedCount, results, creditError };
 }
