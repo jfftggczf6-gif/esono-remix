@@ -1207,8 +1207,7 @@ export default function CoachDashboard() {
                             <div><p className="text-sm font-semibold text-emerald-900">Plan Financier Intermédiaire</p><p className="text-xs text-emerald-600">Framework rempli avec les données réelles</p></div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => handleDownloadCoach('framework_data', 'xlsx', ent.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"><Download className="h-3.5 w-3.5" /> Framework Excel (.xlsx)</button>
-                            <button onClick={() => handleDownloadCoach('framework_data', 'html', ent.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-emerald-700 border border-emerald-300 text-xs font-semibold hover:bg-emerald-50 transition-colors"><Download className="h-3.5 w-3.5" /> Rapport HTML</button>
+                            <button onClick={() => handleDownloadCoach('framework_data', 'html', ent.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"><Download className="h-3.5 w-3.5" /> Rapport HTML</button>
                           </div>
                         </div>
                       </div>
