@@ -21,7 +21,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { type CellWrite, injectIntoXlsm, excelDateSerial, sanitize } from "../_shared/zip-utils.ts";
-import { expandCondensedData, validateAndFillVolumes, scaleToFrameworkTargets, scaleCOGSToFramework, normalizeRangeData, alignOpexToPlanOvo, verifyExcelRevenue, getTotalVolume } from "../_shared/ovo-data-expander.ts";
+import { expandCondensedData, validateAndFillVolumes, scaleToFrameworkTargets, scaleCOGSToFramework, normalizeRangeData, alignOpexToPlanOvo, alignStaffToTarget, alignTotalOpexToFramework, verifyExcelRevenue, getTotalVolume } from "../_shared/ovo-data-expander.ts";
 import { getFiscalParamsForPrompt } from "../_shared/helpers.ts";
 import { enforceFrameworkConstraints } from "../_shared/normalizers.ts";
 
@@ -256,8 +256,14 @@ Deno.serve(async (req: Request) => {
     // Scale product COGS to match Framework gross margin (aligns Excel margin with Plan OVO viewer)
     scaleCOGSToFramework(financialJson, data.framework_data);
 
-    // Fix #4: Align OPEX sub-categories with plan_ovo aggregates
+    // Align staff costs with plan_ovo staff_salaries
+    alignStaffToTarget(financialJson, data.plan_ovo_data);
+
+    // Fix #4: Align OPEX sub-categories with plan_ovo aggregates (with mapping table)
     alignOpexToPlanOvo(financialJson, data.plan_ovo_data);
+
+    // Align total OPEX with Framework-implied OPEX (Marge Brute - EBITDA)
+    alignTotalOpexToFramework(financialJson, data.framework_data);
 
     // Apply Framework constraints to ensure Excel data matches JSON Plan OVO
     if (data.framework_data && financialJson.revenue) {
@@ -380,6 +386,24 @@ Deno.serve(async (req: Request) => {
       console.log("[generate-ovo-plan] Revenue verification PASSED ✓");
     }
 
+    // Post-build OPEX verification log
+    if (data.framework_data?.projection_5ans?.lignes) {
+      const fwL = data.framework_data.projection_5ans.lignes;
+      const findL = (...pats: string[]) => fwL.find((l: any) => pats.some(p => (l.poste || l.libelle || '').toLowerCase().includes(p)));
+      const mbL = findL('marge brute', 'gross margin');
+      const ebL = findL('ebitda', 'ebe', 'excédent brut');
+      if (mbL && ebL) {
+        const fwM: Record<string, string> = { "YEAR2": "an1", "YEAR3": "an2", "YEAR4": "an3", "YEAR5": "an4", "YEAR6": "an5" };
+        for (const [yl, fk] of Object.entries(fwM)) {
+          const mb = Number(mbL[fk] || 0);
+          const eb = Number(ebL[fk] || 0);
+          if (mb > 0) {
+            const fwOpex = mb - eb;
+            console.log(`[generate-ovo-plan] OPEX check ${yl}: Framework-implied OPEX = ${fwOpex} (MB=${mb} - EBITDA=${eb})`);
+          }
+        }
+      }
+    }
     // ── Étape 4 : Injecter les valeurs dans le ZIP ─────────────────────
     console.log("[generate-ovo-plan] Injecting values into Excel...");
     const filledBuffer = await injectIntoXlsm(templateBuffer, cellWrites, SHEET_FILES);
