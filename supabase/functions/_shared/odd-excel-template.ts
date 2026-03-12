@@ -235,11 +235,18 @@ function findTargetRows(
 // Columns: E=info_additionnelle, F=positif(1), G=neutre(1), H=negatif(1), I=besoin_aide(1)
 
 function fillTargetRow(sheetXml: string, cible: Record<string, string>, row: number): string {
+  // Write justification to column K (not E — E contains template guidance text)
   if (cible.justification || cible.info_additionnelle) {
     const info = cible.info_additionnelle || cible.justification || "";
-    sheetXml = setCellInXml(sheetXml, `E${row}`, info);
+    sheetXml = setCellInXml(sheetXml, `K${row}`, info);
   }
 
+  // Write optional additional remarks to column L
+  if (cible.remarques || cible.questions) {
+    sheetXml = setCellInXml(sheetXml, `L${row}`, cible.remarques || cible.questions || "");
+  }
+
+  // Evaluation columns F/G/H remain correct
   if (cible.evaluation === "positif") {
     sheetXml = setCellInXml(sheetXml, `F${row}`, 1);
   } else if (cible.evaluation === "neutre") {
