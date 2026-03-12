@@ -126,11 +126,15 @@ export async function runPipelineFromClient(
       if (d.data && typeof d.data === 'object') {
         if (d.type === 'inputs_data') rich = d.data.compte_resultat && toNumber(d.data.compte_resultat.chiffre_affaires) > 0;
         else if (d.type === 'odd_analysis') {
-          // Check for v2 template alignment — legacy data must be regenerated
           const hasV2 = d.data.metadata?.target_matrix_version === 'v2_template_aligned';
           rich = hasV2 && (d.data.evaluation_cibles_odd || d.data.synthese);
         }
-        else if (d.type === 'plan_ovo') rich = !!d.data.scenarios;
+        else if (d.type === 'plan_ovo') {
+          rich = !!d.data.scenarios;
+          // Force regeneration if calculation_version is outdated
+          const ver = d.data.metadata?.calculation_version ?? 0;
+          if (ver < CALC_VERSION) rich = false;
+        }
         else rich = d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.checklist;
       }
       const delivDate = new Date(d.updated_at).getTime();
