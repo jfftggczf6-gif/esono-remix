@@ -34,6 +34,77 @@ export function validateAndFillVolumes(json: Record<string, any>): void {
   validate(json.services || []);
 }
 
+/**
+ * Scale product-level cogs_r1/r2/r3 so that Excel gross margin matches Framework "Marge Brute".
+ * Called after scaleToFrameworkTargets (volumes already aligned with Framework revenue).
+ */
+// deno-lint-ignore no-explicit-any
+export function scaleCOGSToFramework(json: Record<string, any>, frameworkData?: Record<string, any>): void {
+  const fw = frameworkData as any;
+  if (!fw?.projection_5ans?.lignes || !Array.isArray(fw.projection_5ans.lignes)) return;
+
+  const lignes = fw.projection_5ans.lignes;
+  const findLigne = (...patterns: string[]) =>
+    lignes.find((l: any) => {
+      const lb = (l.poste || l.libelle || '').toLowerCase();
+      return patterns.some(p => lb.includes(p)) && !lb.includes('%') && !lb.includes('(%)');
+    });
+
+  const caLine = findLigne('ca total', 'chiffre', 'revenue', 'ca ');
+  const mbLine = findLigne('marge brute', 'gross');
+  if (!caLine || !mbLine) return;
+
+  const yearLabelToFwKey: Record<string, string> = {
+    "YEAR2": "an1", "YEAR3": "an2", "YEAR4": "an3", "YEAR5": "an4", "YEAR6": "an5",
+  };
+
+  const allItems = [
+    ...(Array.isArray(json.products) ? json.products.filter((p: any) => p.active !== false) : []),
+    ...(Array.isArray(json.services) ? json.services.filter((s: any) => s.active !== false) : []),
+  ];
+
+  for (const [yearLabel, fwKey] of Object.entries(yearLabelToFwKey)) {
+    const fwRevenue = typeof caLine[fwKey] === 'number' ? caLine[fwKey] : parseFcfaValue(String(caLine[fwKey] || ''));
+    const fwMarge = typeof mbLine[fwKey] === 'number' ? mbLine[fwKey] : parseFcfaValue(String(mbLine[fwKey] || ''));
+    if (fwRevenue <= 0 || fwMarge < 0) continue;
+
+    const targetCogsRate = (fwRevenue - fwMarge) / fwRevenue; // target COGS / revenue ratio
+
+    // Calculate current Excel COGS and Revenue for this year
+    let excelRevenue = 0;
+    let excelCOGS = 0;
+    for (const item of allItems) {
+      if (!item.per_year || !Array.isArray(item.per_year)) continue;
+      const yr = item.per_year.find((y: any) => y.year === yearLabel);
+      if (!yr) continue;
+      const price = yr.unit_price_r1 || yr.unit_price_r2 || yr.unit_price_r3 || 0;
+      const cogs = yr.cogs_r1 || yr.cogs_r2 || yr.cogs_r3 || 0;
+      const vol = (yr.volume_h1 || 0) + (yr.volume_h2 || 0) + (yr.volume_q3 || 0) + (yr.volume_q4 || 0);
+      excelRevenue += vol * price;
+      excelCOGS += vol * cogs;
+    }
+
+    if (excelRevenue <= 0 || excelCOGS <= 0) continue;
+
+    const currentCogsRate = excelCOGS / excelRevenue;
+    const cogsScalingRatio = targetCogsRate / currentCogsRate;
+    const ecart = Math.abs(cogsScalingRatio - 1);
+    if (ecart <= 0.05) continue; // < 5% — no adjustment needed
+
+    console.log(`[scaleCOGS] ${yearLabel}: currentCOGS%=${(currentCogsRate*100).toFixed(1)}%, targetCOGS%=${(targetCogsRate*100).toFixed(1)}%, ratio=${cogsScalingRatio.toFixed(3)}`);
+
+    // Apply ratio to all cogs fields for this year
+    for (const item of allItems) {
+      if (!item.per_year || !Array.isArray(item.per_year)) continue;
+      const yr = item.per_year.find((y: any) => y.year === yearLabel);
+      if (!yr) continue;
+      for (const cogsKey of ['cogs_r1', 'cogs_r2', 'cogs_r3'] as const) {
+        if (yr[cogsKey]) yr[cogsKey] = Math.round(yr[cogsKey] * cogsScalingRatio / 1000) * 1000;
+      }
+    }
+  }
+}
+
 // deno-lint-ignore no-explicit-any
 export function scaleToFrameworkTargets(json: Record<string, any>, frameworkData?: Record<string, any>, planOvoData?: Record<string, any>): void {
   const targets: Record<string, number> = {};
