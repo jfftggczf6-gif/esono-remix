@@ -46,7 +46,13 @@ export async function getPipelineState(enterpriseId: string): Promise<PipelineSt
       const hasV2 = d.data.metadata?.target_matrix_version === 'v2_template_aligned';
       return hasV2 && (d.data.evaluation_cibles_odd || d.data.synthese);
     }
-    if (d.type === 'plan_ovo') return !!d.data.scenarios;
+    if (d.type === 'plan_ovo') {
+      if (!d.data.scenarios) return false;
+      // Force regeneration if calculation_version is outdated
+      const ver = d.data.metadata?.calculation_version ?? 0;
+      if (ver < CALC_VERSION) return false;
+      return true;
+    }
     return d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.checklist;
   };
 
