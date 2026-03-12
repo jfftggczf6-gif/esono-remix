@@ -9,9 +9,14 @@ export interface PipelineProgress {
 
 export interface PipelineResult {
   completedCount: number;
+  executedCount: number;
+  skippedCount: number;
   results: { step: string; success: boolean; score?: number; skipped?: boolean; error?: string }[];
   creditError: boolean;
 }
+
+/** Bump this when business logic changes to force regeneration of stale data */
+export const CALC_VERSION = 2;
 
 /**
  * Determines the pipeline generation state by comparing source dates with deliverable dates.
@@ -41,7 +46,13 @@ export async function getPipelineState(enterpriseId: string): Promise<PipelineSt
       const hasV2 = d.data.metadata?.target_matrix_version === 'v2_template_aligned';
       return hasV2 && (d.data.evaluation_cibles_odd || d.data.synthese);
     }
-    if (d.type === 'plan_ovo') return !!d.data.scenarios;
+    if (d.type === 'plan_ovo') {
+      if (!d.data.scenarios) return false;
+      // Force regeneration if calculation_version is outdated
+      const ver = d.data.metadata?.calculation_version ?? 0;
+      if (ver < CALC_VERSION) return false;
+      return true;
+    }
     return d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.checklist;
   };
 
@@ -115,11 +126,15 @@ export async function runPipelineFromClient(
       if (d.data && typeof d.data === 'object') {
         if (d.type === 'inputs_data') rich = d.data.compte_resultat && toNumber(d.data.compte_resultat.chiffre_affaires) > 0;
         else if (d.type === 'odd_analysis') {
-          // Check for v2 template alignment — legacy data must be regenerated
           const hasV2 = d.data.metadata?.target_matrix_version === 'v2_template_aligned';
           rich = hasV2 && (d.data.evaluation_cibles_odd || d.data.synthese);
         }
-        else if (d.type === 'plan_ovo') rich = !!d.data.scenarios;
+        else if (d.type === 'plan_ovo') {
+          rich = !!d.data.scenarios;
+          // Force regeneration if calculation_version is outdated
+          const ver = d.data.metadata?.calculation_version ?? 0;
+          if (ver < CALC_VERSION) rich = false;
+        }
         else rich = d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.checklist;
       }
       const delivDate = new Date(d.updated_at).getTime();
@@ -200,5 +215,8 @@ export async function runPipelineFromClient(
 
   onProgress?.({ current: PIPELINE.length, total: PIPELINE.length, name: 'Terminé' });
 
-  return { completedCount, results, creditError };
+  const skippedCount = results.filter(r => r.skipped).length;
+  const executedCount = results.filter(r => r.success && !r.skipped).length;
+
+  return { completedCount, executedCount, skippedCount, results, creditError };
 }

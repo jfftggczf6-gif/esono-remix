@@ -61,11 +61,17 @@ serve(async (req) => {
     const sourceDate = new Date(ent.updated_at || 0).getTime();
     const toNumber = (v: any) => { const n = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]/g, '')) : Number(v); return isNaN(n) ? 0 : n; };
 
+    const CALC_VERSION = 2;
     const isRich = (d: any): boolean => {
       if (!d.data || typeof d.data !== "object") return false;
       if (d.type === "inputs_data") return d.data.compte_resultat && toNumber(d.data.compte_resultat.chiffre_affaires) > 0;
       if (d.type === "odd_analysis") return d.data.evaluation_cibles_odd || d.data.synthese;
-      if (d.type === "plan_ovo") return !!d.data.scenarios;
+      if (d.type === "plan_ovo") {
+        if (!d.data.scenarios) return false;
+        const ver = d.data.metadata?.calculation_version ?? 0;
+        if (ver < CALC_VERSION) return false;
+        return true;
+      }
       return (d.data.canvas || d.data.theorie_changement || d.data.compte_resultat || d.data.ratios || d.data.diagnostic_par_dimension || d.data.scenarios || d.data.checklist);
     };
 
