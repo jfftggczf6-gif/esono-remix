@@ -551,6 +551,26 @@ export function normalizePlanOvo(raw: any): any {
     d.gross_margin_pct[yk] = rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
   }
 
+  // BUG 1 FIX: Recalculate EBITDA = gross_profit - total_opex
+  if (d.opex) {
+    const opexFields = ['staff_salaries', 'marketing', 'office_costs', 'travel', 'insurance', 'maintenance', 'third_parties', 'other'];
+    for (const yk of YEAR_KEYS) {
+      const totalOpex = opexFields.reduce((sum, f) => sum + (d.opex[f]?.[yk] || 0), 0);
+      if (totalOpex > 0) {
+        d.ebitda[yk] = d.gross_profit[yk] - totalOpex;
+      }
+    }
+  }
+
+  // BUG 2 FIX: Validate EBITDA >= Net Profit (accounting invariant)
+  for (const yk of YEAR_KEYS) {
+    if (d.net_profit[yk] > d.ebitda[yk]) {
+      // Net profit cannot exceed EBITDA; force net_profit = EBITDA * (1 - IS%)
+      d.net_profit[yk] = Math.round(d.ebitda[yk] * 0.75); // ~25% IS default
+      console.warn(`[normalizePlanOvo] net_profit > ebitda for ${yk}, corrected.`);
+    }
+  }
+
   // Recalculate ebitda_margin_pct
   for (const yk of YEAR_KEYS) {
     const rev = d.revenue[yk];
@@ -598,37 +618,31 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     }
   }
 
-  // ── Back-derive year_minus_1 / year_minus_2 from implied Framework growth rate ──
-  // If AI-generated historical values look wrong, recalculate from current_year
-  if (data.revenue?.current_year > 0 && data.revenue?.year2 > 0) {
-    // Implied annual growth rate from Framework (current_year → year2)
-    const impliedGrowth = (data.revenue.year2 / data.revenue.current_year) - 1;
-    // Cap growth rate to reasonable bounds (5%–60%)
+  // ── BUG 6 FIX: Back-derive historical values with PER-SERIES growth rates ──
+  const seriesForHistory: string[] = ['revenue', 'gross_profit', 'ebitda', 'net_profit', 'cogs', 'cashflow'];
+  for (const seriesKey of seriesForHistory) {
+    const s = data[seriesKey];
+    if (!s || typeof s !== 'object') continue;
+    const cy = toNumber(s.current_year);
+    if (cy <= 0) continue;
+    const y2 = toNumber(s.year2);
+    if (y2 <= 0) continue;
+
+    // Per-series implied growth rate (not uniform across all series)
+    const impliedGrowth = (y2 / cy) - 1;
     const g = Math.min(Math.max(impliedGrowth, 0.05), 0.60);
 
-    const series: Array<[string, string]> = [
-      ['revenue', 'revenue'], ['gross_profit', 'gross_profit'],
-      ['ebitda', 'ebitda'], ['net_profit', 'net_profit'], ['cogs', 'cogs'], ['cashflow', 'cashflow'],
-    ];
+    const ym1Derived = Math.round(cy / (1 + g));
+    const ym2Derived = Math.round(ym1Derived / (1 + g));
 
-    for (const [seriesKey] of series) {
-      const s = data[seriesKey];
-      if (!s || typeof s !== 'object') continue;
-      const cy = toNumber(s.current_year);
-      if (cy <= 0) continue;
+    // Only overwrite if AI value is zero OR deviates more than 25% from derived value
+    const overwriteYm1 = !s.year_minus_1 || s.year_minus_1 <= 0 ||
+      Math.abs(toNumber(s.year_minus_1) - ym1Derived) / ym1Derived > 0.25;
+    const overwriteYm2 = !s.year_minus_2 || s.year_minus_2 <= 0 ||
+      Math.abs(toNumber(s.year_minus_2) - ym2Derived) / ym2Derived > 0.25;
 
-      const ym1Derived = Math.round(cy / (1 + g));
-      const ym2Derived = Math.round(ym1Derived / (1 + g));
-
-      // Only overwrite if AI value is zero OR deviates more than 25% from derived value
-      const overwriteYm1 = !s.year_minus_1 || s.year_minus_1 <= 0 ||
-        Math.abs(toNumber(s.year_minus_1) - ym1Derived) / ym1Derived > 0.25;
-      const overwriteYm2 = !s.year_minus_2 || s.year_minus_2 <= 0 ||
-        Math.abs(toNumber(s.year_minus_2) - ym2Derived) / ym2Derived > 0.25;
-
-      if (overwriteYm1) s.year_minus_1 = ym1Derived;
-      if (overwriteYm2) s.year_minus_2 = ym2Derived;
-    }
+    if (overwriteYm1) s.year_minus_1 = ym1Derived;
+    if (overwriteYm2) s.year_minus_2 = ym2Derived;
   }
 
   const lignes = frameworkData.projection_5ans.lignes;
@@ -725,10 +739,31 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     }
   }
 
+  // BUG 2 FIX (post-framework): Validate EBITDA >= Net Profit
+  const { is: tauxISValidation } = getFiscalParams(country || "Côte d'Ivoire");
+  for (const yk of PROJ_KEYS) {
+    if (data.net_profit[yk] > data.ebitda[yk]) {
+      data.net_profit[yk] = Math.round(data.ebitda[yk] * (1 - tauxISValidation / 100));
+      console.warn(`[enforceFramework] net_profit > ebitda for ${yk}, corrected.`);
+    }
+    // Also: EBITDA cannot exceed gross_profit
+    if (data.ebitda[yk] > data.gross_profit[yk] && data.gross_profit[yk] > 0) {
+      data.ebitda[yk] = Math.round(data.gross_profit[yk] * 0.85);
+      console.warn(`[enforceFramework] ebitda > gross_profit for ${yk}, capped at 85%.`);
+    }
+  }
+
   // Recalculate investment metrics deterministically
   if (data.investment_metrics && data.cashflow) {
     const discountRate = data.investment_metrics.discount_rate || 0.12;
-    const initialInv = data.funding_need || 0;
+
+    // BUG 5 FIX: Derive funding_need from CAPEX if zero
+    let initialInv = data.funding_need || 0;
+    if (initialInv <= 0 && Array.isArray(data.capex) && data.capex.length > 0) {
+      initialInv = data.capex.reduce((sum: number, c: any) => sum + (toNumber(c.acquisition_value)), 0);
+      data.funding_need = initialInv;
+      console.warn(`[enforceFramework] funding_need was 0, derived from CAPEX: ${initialInv}`);
+    }
 
     // NPV calculation
     const cfValues = PROJ_KEYS.map((yk, i) => data.cashflow[yk] / Math.pow(1 + discountRate, i + 1));
@@ -751,25 +786,38 @@ export function enforceFrameworkConstraints(data: any, frameworkData: any, input
     }
     data.investment_metrics.tri = isNaN(irr) ? 0 : Math.round(irr * 10000) / 10000;
 
-    // CAGR Revenue — current_year to year6 = 5 years span
-    // Structure: current_year, year2, year3, year4, year5, year6 → 5 projection years
+    // BUG 3 FIX: CAGR Revenue — null if start <= 0
     const revCY = data.revenue.current_year;
     const revY6 = data.revenue.year6;
     if (revCY > 0 && revY6 > 0 && revY6 !== revCY) {
       data.investment_metrics.cagr_revenue = Math.round((Math.pow(revY6 / revCY, 1 / 5) - 1) * 10000) / 10000;
+    } else {
+      data.investment_metrics.cagr_revenue = null;
     }
 
-    // CAGR EBITDA — current_year to year6 = 5 years span
+    // BUG 3 FIX: CAGR EBITDA — null if start <= 0
     const ebCY = data.ebitda.current_year;
     const ebY6 = data.ebitda.year6;
     if (ebCY > 0 && ebY6 > 0 && ebY6 !== ebCY) {
       data.investment_metrics.cagr_ebitda = Math.round((Math.pow(ebY6 / ebCY, 1 / 5) - 1) * 10000) / 10000;
+    } else {
+      data.investment_metrics.cagr_ebitda = null;
     }
 
-    // ROI
+    // BUG 4 & 5 FIX: ROI with validation
     if (initialInv > 0) {
       const totalNet = PROJ_KEYS.reduce((sum, yk) => sum + (data.net_profit[yk] || 0), 0);
       data.investment_metrics.roi = Math.round((totalNet / initialInv) * 100) / 100;
+      // BUG 4: If VAN < 0 but ROI > 0, force ROI negative (incoherent)
+      if (data.investment_metrics.van < 0 && data.investment_metrics.roi > 0) {
+        console.warn(`[enforceFramework] VAN < 0 but ROI > 0 — forcing ROI to reflect losses`);
+        data.investment_metrics.roi = Math.min(data.investment_metrics.roi, 0);
+      }
+    } else {
+      data.investment_metrics.roi = null;
+      data.investment_metrics.payback_years = null;
+      data.investment_metrics.van = null;
+      data.investment_metrics.tri = null;
     }
 
     // Payback
