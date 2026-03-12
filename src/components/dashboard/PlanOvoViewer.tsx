@@ -164,6 +164,9 @@ export default function PlanOvoViewer({ data }: { data: any }) {
       ? ai.roi * 100  // AI returns decimal
       : (totalInvestment > 0 ? (npSeries.slice(3).reduce((a, b) => a + b, 0) / totalInvestment) * 100 : null);
 
+    // Guard: DSCR and Multiple EBITDA are meaningless when first projection year EBITDA is negative
+    const year2Ebitda = ebitdaSeries[3] ?? 0; // index 3 = year2 (first projection year)
+
     return {
       van: ai?.van ?? calcNPV(futureCf, discountRate, totalInvestment),
       // AI returns decimals (0.15), fallback functions return % (15) — normalise to %
@@ -172,8 +175,8 @@ export default function PlanOvoViewer({ data }: { data: any }) {
       cagr_ebitda: ai?.cagr_ebitda != null ? ai.cagr_ebitda * 100 : calcCAGR(ebitdaSeries[currentIdx], ebitdaSeries[7], nYears),
       roi: ai?.roi != null ? ai.roi * 100 : (totalInvestment > 0 ? (npSeries.slice(3).reduce((a, b) => a + b, 0) / totalInvestment) * 100 : null),
       payback_years: ai?.payback_years ?? calcPayback(futureCf, totalInvestment),
-      dscr: ai?.dscr ?? (annualDebtService > 0 ? ebitdaSeries[currentIdx] / annualDebtService : null),
-      multiple_ebitda: ai?.multiple_ebitda ?? null,
+      dscr: year2Ebitda <= 0 ? null : (ai?.dscr ?? (annualDebtService > 0 ? ebitdaSeries[currentIdx] / annualDebtService : null)),
+      multiple_ebitda: year2Ebitda <= 0 ? null : (ai?.multiple_ebitda ?? null),
       discount_rate: discountRate * 100,
       cost_of_capital: (ai?.cost_of_capital || 0.12) * 100,
     };
@@ -183,9 +186,10 @@ export default function PlanOvoViewer({ data }: { data: any }) {
   const vanStatus = (v: number | null) => v == null ? 'neutral' as const : v > 0 ? 'good' as const : v > -1e6 ? 'warning' as const : 'bad' as const;
   const triStatus = (v: number | null) => v == null ? 'neutral' as const : v > 15 ? 'good' as const : v > 8 ? 'warning' as const : 'bad' as const;
   const cagrStatus = (v: number | null) => v == null ? 'neutral' as const : v > 20 ? 'good' as const : v > 10 ? 'warning' as const : 'bad' as const;
-  const roiStatus = (v: number | null) => v == null ? 'neutral' as const : v > 50 ? 'good' as const : v > 20 ? 'warning' as const : 'bad' as const;
+  const roiStatus = (v: number | null) => v == null ? 'neutral' as const : v > 30 ? 'good' as const : v > 10 ? 'warning' as const : 'bad' as const;
   const paybackStatus = (v: number | null) => v == null ? 'neutral' as const : v <= 3 ? 'good' as const : v <= 5 ? 'warning' as const : 'bad' as const;
   const dscrStatus = (v: number | null) => v == null ? 'neutral' as const : v > 1.5 ? 'good' as const : v > 1 ? 'warning' as const : 'bad' as const;
+  const multipleEbitdaStatus = (v: number | null) => v == null ? 'neutral' as const : v >= 5 ? 'good' as const : v >= 3 ? 'warning' as const : 'bad' as const;
 
   const fmtMetric = (v: number | null, suffix = '') => v == null ? '—' : `${v.toFixed(1)}${suffix}`;
 
@@ -302,7 +306,7 @@ export default function PlanOvoViewer({ data }: { data: any }) {
               label="Multiple EBITDA"
               value={metrics.multiple_ebitda != null ? `${Number(metrics.multiple_ebitda).toFixed(1)}` : '—'}
               unit="x"
-              status={metrics.multiple_ebitda != null && Number(metrics.multiple_ebitda) >= 4 ? 'good' : 'neutral'}
+              status={multipleEbitdaStatus(metrics.multiple_ebitda != null ? Number(metrics.multiple_ebitda) : null)}
               description="Valorisation / EBITDA"
             />
           </div>
