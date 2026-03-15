@@ -33,7 +33,7 @@ Génère le framework d'analyse financière COMPLET en JSON avec TOUTES les sect
   "score": <0-100>,
   "periode": "N-2 à N",
   "fiabilite": "Élevée|Moyenne|Faible",
-  "devise": "FCFA",
+  "devise": "${devise}",
   "kpis": {
     "marge_ebitda": "<xx%>",
     "ca_annee_n": <nombre>,
