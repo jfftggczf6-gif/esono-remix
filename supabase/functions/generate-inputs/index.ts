@@ -3,7 +3,7 @@ import { corsHeaders, errorResponse, jsonResponse, verifyAndGetContext, callAI, 
 import { normalizeInputs } from "../_shared/normalizers.ts";
 import { getExtractionKnowledgePrompt } from "../_shared/financial-knowledge.ts";
 
-const SYSTEM_PROMPT = `Tu es un analyste financier expert certifié SYSCOHADA révisé (2017), spécialisé PME africaines (zones UEMOA/CEMAC).
+const buildSystemPrompt = (devise: string) => `Tu es un analyste financier expert certifié SYSCOHADA révisé (2017), spécialisé PME africaines (zones UEMOA/CEMAC).
 
 MISSION: EXTRAIRE les données financières HISTORIQUES des documents fournis (comptes de résultat, bilans, états financiers).
 Tu NE FAIS PAS de projections, PAS de scénarios, PAS de plan d'action.
@@ -12,7 +12,7 @@ RÈGLES D'EXTRACTION:
 1. Extrais UNIQUEMENT les chiffres présents dans les documents uploadés.
 2. Si une donnée n'est pas dans les documents, mets 0 (ne l'invente PAS).
 3. Vérifie la cohérence: Total Actif = Total Passif, Résultat net cohérent.
-4. Tous les montants en FCFA sans séparateurs de milliers dans les champs numériques.
+4. Tous les montants en ${devise} sans séparateurs de milliers dans les champs numériques.
 5. Le score reflète la COMPLÉTUDE des données extraites (100 = toutes les données trouvées).
 
 ${getExtractionKnowledgePrompt()}
