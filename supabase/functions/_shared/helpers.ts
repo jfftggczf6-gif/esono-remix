@@ -415,6 +415,7 @@ export function getFiscalParams(country: string) {
 export function getFiscalParamsForPrompt(country: string): {
   tva: number; is_standard: number; is_pme: number; seuil_pme: string;
   charges_sociales: number; focus: string;
+  devise: string; currency_iso: string; exchange_rate_eur: number;
 } {
   const fp = getFiscalParams(country);
   const c = (country || '').toLowerCase().trim();
@@ -433,9 +434,12 @@ export function getFiscalParamsForPrompt(country: string): {
     tva: fp.tva,
     is_standard: fp.is,
     is_pme: isCIV ? 4 : fp.is,
-    seuil_pme: isCIV ? '200M FCFA' : 'N/A',
+    seuil_pme: isCIV ? `200M ${fp.devise}` : 'N/A',
     charges_sociales: fp.cotisations_sociales,
     focus,
+    devise: fp.devise,
+    currency_iso: fp.currency_iso,
+    exchange_rate_eur: fp.exchange_rate_eur,
   };
 }
 
