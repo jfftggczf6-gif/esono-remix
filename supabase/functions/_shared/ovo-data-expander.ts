@@ -726,6 +726,179 @@ export function verifyExcelRevenue(json: Record<string, any>, frameworkData?: Re
   return { verified, gaps };
 }
 
+/**
+ * Final reconciliation pass: adjusts Excel detail lines so that aggregates
+ * (Revenue, COGS, Staff, non-staff OPEX) match the plan_ovo deliverable exactly.
+ * This ensures Framework → Plan OVO → Excel OVO consistency.
+ * Tolerance: 1% — below that, no adjustment is made.
+ */
+// deno-lint-ignore no-explicit-any
+export function reconcileWithPlanOvo(json: Record<string, any>, planOvoData?: Record<string, any>): void {
+  const po = planOvoData as any;
+  if (!po) return;
+
+  const yearPairs: Array<[string, string]> = [
+    ["YEAR-2", "year_minus_2"], ["YEAR-1", "year_minus_1"], ["CURRENT YEAR", "current_year"],
+    ["YEAR2", "year2"], ["YEAR3", "year3"], ["YEAR4", "year4"], ["YEAR5", "year5"], ["YEAR6", "year6"],
+  ];
+
+  // OPEX array index mapping
+  const yearToOpexIdx: Record<string, number> = {
+    "YEAR-2": 0, "YEAR-1": 1, "CURRENT YEAR": -1, // CY uses H1(2)+H2(3)
+    "YEAR2": 5, "YEAR3": 6, "YEAR4": 7, "YEAR5": 8, "YEAR6": 9,
+  };
+
+  const allItems = [
+    ...(Array.isArray(json.products) ? json.products.filter((p: any) => p.active !== false) : []),
+    ...(Array.isArray(json.services) ? json.services.filter((s: any) => s.active !== false) : []),
+  ];
+
+  for (const [yearLabel, poKey] of yearPairs) {
+    // ── 1. Revenue reconciliation ──
+    const targetRevenue = Number(po.revenue?.[poKey] || 0);
+    if (targetRevenue > 0) {
+      let excelRevenue = 0;
+      for (const item of allItems) {
+        const yr = item.per_year?.find((y: any) => y.year === yearLabel);
+        if (!yr) continue;
+        excelRevenue += getTotalVolume(yr) * getWeightedPrice(yr);
+      }
+      if (excelRevenue > 0) {
+        const ecart = Math.abs(excelRevenue - targetRevenue) / targetRevenue;
+        if (ecart > 0.01) {
+          const ratio = targetRevenue / excelRevenue;
+          console.log(`[reconcile] ${yearLabel} Revenue: excel=${Math.round(excelRevenue)}, target=${targetRevenue}, ratio=${ratio.toFixed(4)}`);
+          for (const item of allItems) {
+            const yr = item.per_year?.find((y: any) => y.year === yearLabel);
+            if (!yr) continue;
+            yr.volume_h1 = Math.round((yr.volume_h1 || 0) * ratio);
+            yr.volume_h2 = Math.round((yr.volume_h2 || 0) * ratio);
+            yr.volume_q3 = Math.round((yr.volume_q3 || 0) * ratio);
+            yr.volume_q4 = Math.round((yr.volume_q4 || 0) * ratio);
+          }
+        }
+      }
+    }
+
+    // ── 2. COGS reconciliation ──
+    const targetCogs = Number(po.cogs?.[poKey] || 0);
+    if (targetCogs > 0) {
+      let excelCogs = 0;
+      for (const item of allItems) {
+        const yr = item.per_year?.find((y: any) => y.year === yearLabel);
+        if (!yr) continue;
+        const cogs = yr.cogs_r1 || yr.cogs_r2 || yr.cogs_r3 || 0;
+        excelCogs += getTotalVolume(yr) * cogs;
+      }
+      if (excelCogs > 0) {
+        const ecart = Math.abs(excelCogs - targetCogs) / targetCogs;
+        if (ecart > 0.01) {
+          const ratio = targetCogs / excelCogs;
+          console.log(`[reconcile] ${yearLabel} COGS: excel=${Math.round(excelCogs)}, target=${targetCogs}, ratio=${ratio.toFixed(4)}`);
+          for (const item of allItems) {
+            const yr = item.per_year?.find((y: any) => y.year === yearLabel);
+            if (!yr) continue;
+            for (const k of ['cogs_r1', 'cogs_r2', 'cogs_r3'] as const) {
+              if (yr[k]) yr[k] = Math.round(yr[k] * ratio / 1000) * 1000;
+            }
+          }
+        }
+      }
+    }
+
+    // ── 3. Staff reconciliation ──
+    const targetStaff = Number(po.opex?.staff_salaries?.[poKey] || 0);
+    if (targetStaff > 0 && Array.isArray(json.staff) && json.staff.length > 0) {
+      let excelStaff = 0;
+      for (const cat of json.staff) {
+        const yr = cat.per_year?.find((y: any) => y.year === yearLabel);
+        if (!yr) continue;
+        const hc = yr.headcount || 0;
+        const salary = yr.gross_monthly_salary_per_person || 0;
+        const allow = yr.annual_allowances_per_person || 0;
+        const sr = cat.social_security_rate || 0.1645;
+        excelStaff += hc * (salary * 12 + allow) * (1 + sr);
+      }
+      if (excelStaff > 0) {
+        const ecart = Math.abs(excelStaff - targetStaff) / targetStaff;
+        if (ecart > 0.01) {
+          const ratio = targetStaff / excelStaff;
+          console.log(`[reconcile] ${yearLabel} Staff: excel=${Math.round(excelStaff)}, target=${targetStaff}, ratio=${ratio.toFixed(4)}`);
+          for (const cat of json.staff) {
+            const yr = cat.per_year?.find((y: any) => y.year === yearLabel);
+            if (!yr) continue;
+            yr.gross_monthly_salary_per_person = Math.round((yr.gross_monthly_salary_per_person || 0) * ratio / 1000) * 1000;
+            yr.annual_allowances_per_person = Math.round((yr.annual_allowances_per_person || 0) * ratio / 1000) * 1000;
+          }
+        }
+      }
+    }
+
+    // ── 4. Non-staff OPEX reconciliation ──
+    // Compute target non-staff OPEX = gross_profit - ebitda - staff
+    const targetGP = Number(po.gross_profit?.[poKey] || 0);
+    const targetEbitda = Number(po.ebitda?.[poKey] || 0);
+    if (targetGP > 0 && json.opex) {
+      const targetTotalOpex = targetGP - targetEbitda;
+      const reconciledStaff = targetStaff > 0 ? targetStaff : 0;
+      const targetNonStaffOpex = targetTotalOpex - reconciledStaff;
+      if (targetNonStaffOpex <= 0) continue;
+
+      const idx = yearToOpexIdx[yearLabel];
+      let excelNonStaffOpex = 0;
+      const opexCategories = Object.keys(json.opex);
+
+      if (idx === -1) {
+        // CURRENT YEAR: sum H1(2) + H2(3)
+        for (const catKey of opexCategories) {
+          const cat = json.opex[catKey];
+          if (!cat || typeof cat !== 'object') continue;
+          for (const subVals of Object.values(cat)) {
+            if (Array.isArray(subVals) && subVals.length > 3) {
+              excelNonStaffOpex += ((subVals as number[])[2] || 0) + ((subVals as number[])[3] || 0);
+            }
+          }
+        }
+      } else if (idx >= 0) {
+        for (const catKey of opexCategories) {
+          const cat = json.opex[catKey];
+          if (!cat || typeof cat !== 'object') continue;
+          for (const subVals of Object.values(cat)) {
+            if (Array.isArray(subVals) && subVals.length > idx) {
+              excelNonStaffOpex += ((subVals as number[])[idx] || 0);
+            }
+          }
+        }
+      }
+
+      if (excelNonStaffOpex > 0) {
+        const ecart = Math.abs(excelNonStaffOpex - targetNonStaffOpex) / targetNonStaffOpex;
+        if (ecart > 0.01) {
+          const ratio = targetNonStaffOpex / excelNonStaffOpex;
+          console.log(`[reconcile] ${yearLabel} NonStaffOPEX: excel=${Math.round(excelNonStaffOpex)}, target=${Math.round(targetNonStaffOpex)}, ratio=${ratio.toFixed(4)}`);
+          for (const catKey of opexCategories) {
+            const cat = json.opex[catKey];
+            if (!cat || typeof cat !== 'object') continue;
+            for (const [subKey, subVals] of Object.entries(cat)) {
+              if (!Array.isArray(subVals)) continue;
+              if (idx === -1) {
+                if (subVals.length > 3) {
+                  (json.opex[catKey][subKey] as number[])[2] = Math.round(((subVals as number[])[2] || 0) * ratio / 1000) * 1000;
+                  (json.opex[catKey][subKey] as number[])[3] = Math.round(((subVals as number[])[3] || 0) * ratio / 1000) * 1000;
+                }
+              } else if (subVals.length > idx) {
+                (json.opex[catKey][subKey] as number[])[idx] = Math.round(((subVals as number[])[idx] || 0) * ratio / 1000) * 1000;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  console.log('[reconcile] Final reconciliation with plan_ovo completed.');
+}
+
 // ── Internal helpers ──
 
 function parseFcfaValue(raw: string): number {
