@@ -158,7 +158,7 @@ export function scaleCOGSToFramework(json: Record<string, any>, frameworkData?: 
 }
 
 // deno-lint-ignore no-explicit-any
-export function scaleToFrameworkTargets(json: Record<string, any>, frameworkData?: Record<string, any>, planOvoData?: Record<string, any>, inputsData?: Record<string, any>): void {
+export function scaleToFrameworkTargets(json: Record<string, any>, frameworkData?: Record<string, any>, planOvoData?: Record<string, any>, inputsData?: Record<string, any>, sector?: string): void {
   const targets: Record<string, number> = {};
   const yearLabels = ["YEAR-2", "YEAR-1", "CURRENT YEAR", "YEAR2", "YEAR3", "YEAR4", "YEAR5", "YEAR6"];
 
