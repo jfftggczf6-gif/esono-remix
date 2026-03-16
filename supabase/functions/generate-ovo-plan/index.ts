@@ -264,7 +264,7 @@ Deno.serve(async (req: Request) => {
     validateAndFillVolumes(financialJson);
 
     // Scale volumes to align Excel revenues with Framework/plan_ovo targets
-    scaleToFrameworkTargets(financialJson, data.framework_data, data.plan_ovo_data, data.inputs_data);
+    scaleToFrameworkTargets(financialJson, data.framework_data, data.plan_ovo_data, data.inputs_data, data.sector);
 
     // Scale product COGS to match Framework gross margin (aligns Excel margin with Plan OVO viewer)
     scaleCOGSToFramework(financialJson, data.framework_data);
