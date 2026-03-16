@@ -125,9 +125,10 @@ export default function PlanOvoViewer({ data }: { data: any }) {
   const revSeries = getYearSeries(data.revenue);
   const cogsSeries = getYearSeries(data.cogs);
   const gpSeries = getYearSeries(data.gross_profit);
-  const gpPctSeries = getYearSeries(data.gross_margin_pct);
   const ebitdaSeries = getYearSeries(data.ebitda);
-  const ebitdaPctSeries = getYearSeries(data.ebitda_margin_pct);
+  // Compute margin % live to avoid stale stored values from old generations
+  const gpPctSeries = gpSeries.map((gp, i) => revSeries[i] > 0 ? (gp / revSeries[i]) * 100 : 0);
+  const ebitdaPctSeries = ebitdaSeries.map((ebitda, i) => revSeries[i] > 0 ? (ebitda / revSeries[i]) * 100 : 0);
   const npSeries = getYearSeries(data.net_profit);
   const cfSeries = getYearSeries(data.cashflow);
 
