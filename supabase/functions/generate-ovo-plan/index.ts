@@ -331,7 +331,7 @@ Deno.serve(async (req: Request) => {
       const criticalGaps = Object.values(gaps).filter(g => g.ecart > 10);
       if (criticalGaps.length > 0) {
         console.log("[generate-ovo-plan] Critical gaps detected, re-scaling and rebuilding cells...");
-        scaleToFrameworkTargets(financialJson, data.framework_data, undefined, data.inputs_data);
+        scaleToFrameworkTargets(financialJson, data.framework_data, undefined, data.inputs_data, data.sector);
         const correctedWrites = buildCellWrites(financialJson);
         const { verified: v2 } = verifyExcelRevenue(financialJson, data.framework_data);
         if (v2) {
