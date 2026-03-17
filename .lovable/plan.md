@@ -1,14 +1,36 @@
 
 
-## Réponse
+## Fix: permettre plusieurs documents supplémentaires
 
-Lovable offre deux options pour tester des modifications sans affecter le projet principal :
+### Problème
+Dans `handleUpload` (CoachDashboard.tsx, lignes 266-276), le bloc `else` supprime **tous** les uploads existants de la même catégorie avant d'insérer le nouveau. Pour `bmc`, `sic`, `inputs` c'est le comportement voulu (1 seul fichier). Mais pour `supplementary`, ça écrase le précédent à chaque fois.
 
-1. **Remix (clone)** : Créer une copie complète du projet. Allez dans **Settings → Remix this project**. Cela crée un nouveau projet identique où vous pouvez tester librement.
+Second problème : les noms de fichiers avec caractères spéciaux (parenthèses, espaces, accents) causent une erreur "Invalid key" dans le storage Supabase.
 
-2. **Branches GitHub** (expérimental) : Si votre projet est connecté à GitHub, vous pouvez activer le switching de branches dans **Account Settings → Labs → GitHub Branch Switching**. Cela vous permet de travailler sur une branche séparée.
+### Modifications — `CoachDashboard.tsx`
 
-Je ne peux pas créer de remix ou de branche directement pour vous — ces actions se font depuis l'interface Lovable.
+**1. `handleUpload` (~ligne 266-276)** — Ne pas supprimer les fichiers existants quand `category === 'supplementary'`
 
-**Recommandation** : Le remix est le plus simple et le plus fiable pour tester des modifications en isolation.
+```ts
+} else {
+  if (category !== 'supplementary') {
+    const existingUploads = uploadsMap[enterpriseId] || [];
+    const existing = existingUploads.filter((u) => u.category === category);
+    for (const u of existing) {
+      await supabase.from('coach_uploads').delete().eq('id', u.id);
+      await supabase.storage.from('documents').remove([u.storage_path]);
+    }
+  }
+  await supabase.from('coach_uploads').insert({ ... });
+}
+```
+
+**2. Sanitize le nom de fichier dans le `filePath`** (~ligne 248) — Remplacer les caractères problématiques (espaces, parenthèses, accents) par des underscores pour éviter l'erreur "Invalid key" :
+
+```ts
+const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+const filePath = `${enterpriseId}/coach/${category}/${Date.now()}_${safeName}`;
+```
+
+Le `filename` original reste stocké tel quel dans `coach_uploads` pour l'affichage.
 
