@@ -145,9 +145,21 @@ export async function runPipelineFromClient(
   const results: PipelineResult['results'] = [];
   let completedCount = 0;
   let creditError = false;
+  let inputsScoreZero = false;
+
+  // Financial steps that require real inputs data
+  const FINANCIAL_STEPS = new Set(['generate-framework', 'generate-plan-ovo', 'reconcile-plan-ovo', 'generate-ovo-plan']);
 
   for (let i = 0; i < PIPELINE.length; i++) {
     const step = PIPELINE[i];
+
+    // Skip financial steps if inputs has no real financial data
+    if (inputsScoreZero && FINANCIAL_STEPS.has(step.fn)) {
+      results.push({ step: step.name, success: true, skipped: true, error: 'Pas de données financières — module ignoré' });
+      completedCount++;
+      onProgress?.({ current: i + 1, total: PIPELINE.length, name: `${step.name} (ignoré)` });
+      continue;
+    }
 
     // Never skip reconcile-plan-ovo or generate-ovo-plan — they must always run to sync data
     const isAlwaysRun = step.fn === 'reconcile-plan-ovo' || step.fn === 'generate-ovo-plan';
@@ -184,6 +196,10 @@ export async function runPipelineFromClient(
         results.push({ step: step.name, success: true, score: result.score });
         completedCount++;
         onStepComplete?.();
+        // Detect empty inputs (no financial data) to skip downstream financial steps
+        if (step.fn === 'generate-inputs' && (result.score === 0 || !result.score)) {
+          inputsScoreZero = true;
+        }
       } else {
         const err = await response.json().catch(() => ({ error: 'Unknown' }));
 

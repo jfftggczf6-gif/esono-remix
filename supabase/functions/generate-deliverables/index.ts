@@ -95,13 +95,25 @@ serve(async (req) => {
       "generate-odd": "odd_analysis",
     };
 
+    // Financial steps that require real inputs data (score > 0)
+    const FINANCIAL_STEPS = new Set(["generate-framework", "generate-plan-ovo", "generate-ovo-plan", "reconcile-plan-ovo"]);
+
     const results: { step: string; success: boolean; score?: number; skipped?: boolean; error?: string }[] = [];
     let completedCount = 0;
     let creditError = false;
+    let inputsScoreZero = false; // Track if inputs has no financial data
 
     // Run pipeline sequentially
     for (const step of PIPELINE_STEPS) {
       const delivType = fnToDelivType[step.function];
+      
+      // Skip financial steps if inputs has no real financial data
+      if (inputsScoreZero && FINANCIAL_STEPS.has(step.function)) {
+        console.log(`Skipping ${step.name}: pas de données financières réelles`);
+        results.push({ step: step.name, success: true, skipped: true, error: "Pas de données financières — module ignoré" });
+        completedCount++;
+        continue;
+      }
       
       // Never skip generate-ovo-plan — it must always run to keep Excel in sync
       const isAlwaysRun = step.function === "generate-ovo-plan";
@@ -129,6 +141,11 @@ serve(async (req) => {
           const result = await response.json();
           results.push({ step: step.name, success: true, score: result.score });
           completedCount++;
+          // Detect empty inputs (no financial data) to skip downstream financial steps
+          if (step.function === "generate-inputs" && (result.score === 0 || !result.score)) {
+            inputsScoreZero = true;
+            console.log("generate-inputs returned score 0 — will skip financial modules");
+          }
         } else {
           const err = await response.json().catch(() => ({ error: "Unknown" }));
           console.error(`${step.name} failed:`, err);
