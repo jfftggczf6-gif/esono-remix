@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import CoachDashboard from '@/components/dashboard/CoachDashboard';
 import EntrepreneurDashboard from '@/components/dashboard/EntrepreneurDashboard';
-
+import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
 export default function Dashboard() {
   const { role, loading, roleLoading, user } = useAuth();
 
