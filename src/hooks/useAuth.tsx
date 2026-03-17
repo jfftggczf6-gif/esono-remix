@@ -29,14 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roleLoading, setRoleLoading] = useState(false);
   const skipRoleFetch = useRef(false);
 
+  const ROLE_PRIORITY: AppRole[] = ['super_admin', 'coach', 'entrepreneur'];
+
   const fetchUserData = async (userId: string) => {
-    const [profileRes, roleRes] = await Promise.all([
+    const [profileRes, rolesRes] = await Promise.all([
       supabase.from('profiles').select('full_name, email, avatar_url').eq('user_id', userId).single(),
-      supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', userId),
     ]);
     if (profileRes.data) setProfile(profileRes.data);
-    if (roleRes.data) setRoleState(roleRes.data.role);
-    else setRoleState(null);
+    if (rolesRes.data && rolesRes.data.length > 0) {
+      const roles = rolesRes.data.map(r => r.role);
+      const effective = ROLE_PRIORITY.find(r => roles.includes(r)) || roles[0];
+      setRoleState(effective);
+    } else {
+      setRoleState(null);
+    }
   };
 
   useEffect(() => {
