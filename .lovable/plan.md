@@ -1,14 +1,30 @@
 
 
-## Réponse
+## Ajouter la prévisualisation du rapport IA coach
 
-Lovable offre deux options pour tester des modifications sans affecter le projet principal :
+### Objectif
+Permettre de visualiser le rapport HTML généré directement dans l'application au lieu de le télécharger automatiquement.
 
-1. **Remix (clone)** : Créer une copie complète du projet. Allez dans **Settings → Remix this project**. Cela crée un nouveau projet identique où vous pouvez tester librement.
+### Modifications
 
-2. **Branches GitHub** (expérimental) : Si votre projet est connecté à GitHub, vous pouvez activer le switching de branches dans **Account Settings → Labs → GitHub Branch Switching**. Cela vous permet de travailler sur une branche séparée.
+**Fichier : `src/components/dashboard/CoachDashboard.tsx`**
 
-Je ne peux pas créer de remix ou de branche directement pour vous — ces actions se font depuis l'interface Lovable.
+1. **Ajouter un state** pour stocker le contenu HTML du rapport et l'ID de l'entreprise concernée :
+   - `reportPreview: { html: string; enterpriseName: string } | null`
 
-**Recommandation** : Le remix est le plus simple et le plus fiable pour tester des modifications en isolation.
+2. **Modifier `handleDownloadReport`** : au lieu de créer un blob et déclencher un download, stocker le HTML dans le state `reportPreview`.
+
+3. **Ajouter un Dialog/Sheet de prévisualisation** :
+   - Utiliser un `Dialog` plein écran (ou `Sheet` côté droit) qui s'ouvre quand `reportPreview` est non-null
+   - Contenu : un `iframe` avec `srcdoc={reportPreview.html}` pour afficher le HTML de façon isolée
+   - Header avec le nom de l'entreprise + deux boutons :
+     - **Télécharger** : déclenche le download du fichier HTML (logique actuelle)
+     - **Fermer** : remet `reportPreview` à null
+
+### Détails techniques
+- `srcdoc` sur un iframe est le moyen le plus sûr d'afficher du HTML arbitraire sans risque XSS sur le DOM parent
+- Le Dialog utilisera `max-w-[90vw] h-[85vh]` pour un affichage confortable
+- Le bouton « Rapport IA » garde son comportement actuel (loader pendant la génération) mais ouvre la preview au lieu de télécharger
+
+### Aucune migration requise
 
