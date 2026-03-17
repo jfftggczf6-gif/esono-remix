@@ -153,6 +153,14 @@ export async function runPipelineFromClient(
   for (let i = 0; i < PIPELINE.length; i++) {
     const step = PIPELINE[i];
 
+    // Skip financial steps if inputs has no real financial data
+    if (inputsScoreZero && FINANCIAL_STEPS.has(step.fn)) {
+      results.push({ step: step.name, success: true, skipped: true, error: 'Pas de données financières — module ignoré' });
+      completedCount++;
+      onProgress?.({ current: i + 1, total: PIPELINE.length, name: `${step.name} (ignoré)` });
+      continue;
+    }
+
     // Never skip reconcile-plan-ovo or generate-ovo-plan — they must always run to sync data
     const isAlwaysRun = step.fn === 'reconcile-plan-ovo' || step.fn === 'generate-ovo-plan';
 
