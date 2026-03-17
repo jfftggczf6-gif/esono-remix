@@ -145,6 +145,10 @@ export async function runPipelineFromClient(
   const results: PipelineResult['results'] = [];
   let completedCount = 0;
   let creditError = false;
+  let inputsScoreZero = false;
+
+  // Financial steps that require real inputs data
+  const FINANCIAL_STEPS = new Set(['generate-framework', 'generate-plan-ovo', 'reconcile-plan-ovo', 'generate-ovo-plan']);
 
   for (let i = 0; i < PIPELINE.length; i++) {
     const step = PIPELINE[i];
