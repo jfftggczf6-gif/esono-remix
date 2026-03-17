@@ -1107,6 +1107,59 @@ function planOvoHTML(data: any, ent: string): string {
     body += '</table></div>';
   }
 
+  // Funding & Break-even
+  if (data.funding_need || data.break_even_year) {
+    body += `<div class="card"><h2>💰 Financement & Rentabilité</h2><div class="grid-4">`;
+    if (data.funding_need) body += `<div class="metric"><div class="lbl">Besoin de financement</div><div class="val" style="font-size:18px;color:#2563eb">${fmt(data.funding_need)} FCFA</div></div>`;
+    if (data.break_even_year) body += `<div class="metric"><div class="lbl">Seuil de rentabilité</div><div class="val" style="font-size:18px;color:#16a34a">${data.break_even_year}</div></div>`;
+    body += `</div></div>`;
+  }
+
+  // Products & Services
+  const products = data.products || [];
+  const services = data.services || [];
+  if (products.length > 0 || services.length > 0) {
+    body += `<div class="card"><h2>📦 Produits & Services</h2><table><tr><th>Nom</th><th>Type</th><th>Gamme</th><th>Canal</th></tr>`;
+    for (const p of products) {
+      body += `<tr><td>${p.name || '—'}</td><td><span class="tag">Produit</span></td><td>${p.range || '—'}</td><td>${p.channel || '—'}</td></tr>`;
+    }
+    for (const s of services) {
+      body += `<tr><td>${s.name || '—'}</td><td><span class="tag">Service</span></td><td>${s.range || '—'}</td><td>${s.channel || '—'}</td></tr>`;
+    }
+    body += '</table></div>';
+  }
+
+  // Scenarios
+  const scenarios = data.scenarios || {};
+  const scenarioEntries = Object.entries(scenarios).filter(([_, v]) => v);
+  if (scenarioEntries.length > 0) {
+    body += `<div class="card"><h2>🎯 Scénarios</h2><table><tr><th>Scénario</th><th>Hypothèses</th><th style="text-align:right">CA Year 5</th><th style="text-align:right">EBITDA Year 5</th><th style="text-align:right">Résultat Net Year 5</th><th style="text-align:right">VAN</th><th style="text-align:right">TRI</th></tr>`;
+    const scenarioLabels: Record<string, string> = { optimiste: '🟢 Optimiste', realiste: '🟡 Réaliste', pessimiste: '🔴 Pessimiste' };
+    for (const [key, sc] of scenarioEntries as [string, any][]) {
+      const triVal = sc.tri != null ? (typeof sc.tri === 'number' ? (sc.tri * 100).toFixed(1) + '%' : sc.tri) : '—';
+      body += `<tr><td style="font-weight:600">${scenarioLabels[key] || key}</td><td style="max-width:200px;font-size:12px">${sc.hypotheses || '—'}</td><td class="amount">${fmt(sc.revenue_year5)}</td><td class="amount">${fmt(sc.ebitda_year5)}</td><td class="amount">${fmt(sc.net_profit_year5)}</td><td class="amount">${fmt(sc.van)}</td><td class="amount">${triVal}</td></tr>`;
+    }
+    body += '</table></div>';
+  }
+
+  // Key Assumptions
+  if (data.key_assumptions?.length) {
+    body += `<div class="card"><h2>📌 Hypothèses clés</h2><ul style="margin:0;padding-left:20px">`;
+    for (const a of data.key_assumptions) {
+      body += `<li style="margin-bottom:6px;line-height:1.5">${a}</li>`;
+    }
+    body += '</ul></div>';
+  }
+
+  // Recommendations
+  if (data.recommandations?.length) {
+    body += `<div class="card"><h2>✅ Recommandations</h2><ul style="margin:0;padding-left:20px">`;
+    for (const r of data.recommandations) {
+      body += `<li style="margin-bottom:6px;line-height:1.5">→ ${r}</li>`;
+    }
+    body += '</ul></div>';
+  }
+
   return htmlShell('Plan Financier OVO', data.score, body, ent);
 }
 
