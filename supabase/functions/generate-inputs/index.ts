@@ -374,7 +374,7 @@ ${userPrompt(ent.name, ent.sector || "", ent.country || "", "", bmcData, fiscalP
       // Force estimation flags
       estimationData.estimation_sectorielle = true;
       estimationData.fiabilite = "Indicative — estimation sectorielle";
-      estimationData.score = Math.min(estimationData.score || 15, 20); // Cap at 20
+      estimationData.score = estimationData.score || 15;
       if (!estimationData.donnees_manquantes) estimationData.donnees_manquantes = [];
       if (!estimationData.donnees_manquantes.includes("Aucun document financier réel — estimations basées sur benchmarks sectoriels")) {
         estimationData.donnees_manquantes.unshift("Aucun document financier réel — estimations basées sur benchmarks sectoriels. Uploadez le template Analyse Financière Excel pour des données précises.");
