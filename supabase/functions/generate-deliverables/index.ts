@@ -95,6 +95,9 @@ serve(async (req) => {
       "generate-odd": "odd_analysis",
     };
 
+    // Financial steps that require real inputs data (score > 0)
+    const FINANCIAL_STEPS = new Set(["generate-framework", "generate-plan-ovo", "generate-ovo-plan", "reconcile-plan-ovo"]);
+
     const results: { step: string; success: boolean; score?: number; skipped?: boolean; error?: string }[] = [];
     let completedCount = 0;
     let creditError = false;
