@@ -1994,6 +1994,46 @@ export default function CoachDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* ===== EXTRACT INFO DIALOG ===== */}
+      <Dialog open={showExtractDialog} onOpenChange={setShowExtractDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Informations détectées</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mb-4">
+            Nous avons extrait les informations suivantes du document uploadé. Souhaitez-vous mettre à jour l'entreprise ?
+          </p>
+          <div className="space-y-2">
+            {extractedInfo?.name && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">Nom</Badge>
+                <span className="text-sm font-medium">{extractedInfo.name}</span>
+              </div>
+            )}
+            {extractedInfo?.sector && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">Secteur</Badge>
+                <span className="text-sm font-medium">{extractedInfo.sector}</span>
+              </div>
+            )}
+            {extractedInfo?.country && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">Pays</Badge>
+                <span className="text-sm font-medium">{extractedInfo.country}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => { setShowExtractDialog(false); setExtractedInfo(null); }}>
+              Ignorer
+            </Button>
+            <Button onClick={handleConfirmExtraction} disabled={savingExtraction}>
+              {savingExtraction ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Mettre à jour
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </DashboardLayout>
   );
