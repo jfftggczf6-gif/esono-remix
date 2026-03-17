@@ -29,14 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roleLoading, setRoleLoading] = useState(false);
   const skipRoleFetch = useRef(false);
 
+  const ROLE_PRIORITY: AppRole[] = ['super_admin', 'coach', 'entrepreneur'];
+
   const fetchUserData = async (userId: string) => {
-    const [profileRes, roleRes] = await Promise.all([
+    const [profileRes, rolesRes] = await Promise.all([
       supabase.from('profiles').select('full_name, email, avatar_url').eq('user_id', userId).single(),
-      supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', userId),
     ]);
     if (profileRes.data) setProfile(profileRes.data);
-    if (roleRes.data) setRoleState(roleRes.data.role);
-    else setRoleState(null);
+    if (rolesRes.data && rolesRes.data.length > 0) {
+      const roles = rolesRes.data.map(r => r.role);
+      const effective = ROLE_PRIORITY.find(r => roles.includes(r)) || roles[0];
+      setRoleState(effective);
+    } else {
+      setRoleState(null);
+    }
   };
 
   useEffect(() => {
@@ -109,9 +116,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setRole = async (newRole: AppRole) => {
     if (!user) throw new Error('Not authenticated');
-    const { error } = await supabase.from('user_roles').upsert(
-      { user_id: user.id, role: newRole },
-      { onConflict: 'user_id,role' }
+    // Remove existing coach/entrepreneur roles before inserting the new one
+    // (keep super_admin if it exists)
+    await supabase.from('user_roles')
+      .delete()
+      .eq('user_id', user.id)
+      .in('role', ['coach', 'entrepreneur']);
+    const { error } = await supabase.from('user_roles').insert(
+      { user_id: user.id, role: newRole }
     );
     if (error) throw error;
     setRoleState(newRole);
