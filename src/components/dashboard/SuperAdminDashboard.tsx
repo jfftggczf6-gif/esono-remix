@@ -271,7 +271,7 @@ export default function SuperAdminDashboard() {
                 <TableBody>
                   {filteredEnterprises.map(e => {
                     const owner = profileMap[e.user_id];
-                    const coach = e.coach_id ? profileMap[e.coach_id] : null;
+                    const _coach = e.coach_id ? profileMap[e.coach_id] : null;
                     return (
                       <TableRow key={e.id}>
                         <TableCell className="font-medium">{e.name}</TableCell>
