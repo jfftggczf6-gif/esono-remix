@@ -103,7 +103,7 @@ export default function CoachDashboard() {
   // Enterprise info extraction states
   const [extractedInfo, setExtractedInfo] = useState<{ name: string | null; country: string | null; sector: string | null } | null>(null);
   const [showExtractDialog, setShowExtractDialog] = useState(false);
-  const [extractingEntId, setExtractingEntId] = useState<string | null>(null);
+  const [_extractingEntId, setExtractingEntId] = useState<string | null>(null);
   const [savingExtraction, setSavingExtraction] = useState(false);
 
   const bmcInputRef = useRef<HTMLInputElement>(null);
