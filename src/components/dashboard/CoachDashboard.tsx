@@ -695,17 +695,8 @@ export default function CoachDashboard() {
 
       const result = await response.json();
       const html = result.html;
-
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Rapport_${ent.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Rapport détaillé téléchargé !');
+      setReportPreview({ html, enterpriseName: ent.name });
+      toast.success('Rapport généré !');
     } catch (err: any) {
       console.error('Report generation error:', err);
       toast.error(err.message || 'Erreur lors de la génération du rapport');
