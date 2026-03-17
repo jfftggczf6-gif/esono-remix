@@ -141,6 +141,11 @@ serve(async (req) => {
           const result = await response.json();
           results.push({ step: step.name, success: true, score: result.score });
           completedCount++;
+          // Detect empty inputs (no financial data) to skip downstream financial steps
+          if (step.function === "generate-inputs" && (result.score === 0 || !result.score)) {
+            inputsScoreZero = true;
+            console.log("generate-inputs returned score 0 — will skip financial modules");
+          }
         } else {
           const err = await response.json().catch(() => ({ error: "Unknown" }));
           console.error(`${step.name} failed:`, err);
