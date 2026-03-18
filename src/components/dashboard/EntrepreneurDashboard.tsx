@@ -24,6 +24,7 @@ import BusinessPlanPreview from './BusinessPlanPreview';
 import ModeSelectionModal from './ModeSelectionModal';
 import ReconstructionUploader from './ReconstructionUploader';
 import ScreeningReportViewer from './ScreeningReportViewer';
+import DataRoomManager from './DataRoomManager';
 import {
   MODULE_CONFIG, PIPELINE, MODULE_FN_MAP,
   type Enterprise, type Deliverable, type EnterpriseModule, type UploadedFile,
@@ -1128,13 +1129,28 @@ export default function EntrepreneurDashboard() {
                 <Search className="h-5 w-5 text-muted-foreground" />
                 <h1 className="font-display font-semibold text-base">Diagnostic & Screening</h1>
               </>
+            ) : selectedModule === 'dataroom' ? (
+              <>
+                <FolderPlus className="h-5 w-5 text-muted-foreground" />
+                <h1 className="font-display font-semibold text-base">Data Room</h1>
+              </>
             ) : selectedMod && (
               <>
                 <selectedMod.icon className="h-5 w-5 text-muted-foreground" />
                 <h1 className="font-display font-semibold text-base">{selectedMod.title}</h1>
               </>
             )}
-            <div className="ml-auto">
+            <div className="ml-auto flex gap-2">
+              {(enterprise as any).operating_mode === 'due_diligence' && (
+                <Button
+                  variant={selectedModule === 'dataroom' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-2 text-xs"
+                  onClick={() => setSelectedModule('dataroom')}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" /> Data Room
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1145,7 +1161,7 @@ export default function EntrepreneurDashboard() {
                 {generatingScreening ? (
                   <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Screening en cours…</>
                 ) : (
-                  <><Search className="h-3.5 w-3.5" /> {selectedModule === 'screening' ? 'Regénérer le screening' : '🔍 Diagnostic & Screening'}</>
+                  <><Search className="h-3.5 w-3.5" /> {selectedModule === 'screening' ? 'Regénérer le screening' : '🔍 Screening'}</>
                 )}
               </Button>
             </div>
@@ -1384,7 +1400,11 @@ export default function EntrepreneurDashboard() {
               </div>
             )}
 
-            {selectedModule === 'screening' && selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
+            {selectedModule === 'dataroom' && enterprise && user ? (
+              <div className="p-6">
+                <DataRoomManager enterpriseId={enterprise.id} userId={user.id} />
+              </div>
+            ) : selectedModule === 'screening' && selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
               <div className="p-6">
                 <ScreeningReportViewer data={selectedDeliv.data as Record<string, any>} />
               </div>
