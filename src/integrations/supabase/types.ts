@@ -55,6 +55,106 @@ export type Database = {
           },
         ]
       }
+      data_room_documents: {
+        Row: {
+          category: string
+          created_at: string | null
+          deliverable_type: string | null
+          enterprise_id: string
+          evidence_level: number | null
+          file_size: number | null
+          filename: string
+          id: string
+          is_generated: boolean | null
+          label: string
+          storage_path: string
+          updated_at: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          deliverable_type?: string | null
+          enterprise_id: string
+          evidence_level?: number | null
+          file_size?: number | null
+          filename: string
+          id?: string
+          is_generated?: boolean | null
+          label: string
+          storage_path: string
+          updated_at?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          deliverable_type?: string | null
+          enterprise_id?: string
+          evidence_level?: number | null
+          file_size?: number | null
+          filename?: string
+          id?: string
+          is_generated?: boolean | null
+          label?: string
+          storage_path?: string
+          updated_at?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_room_documents_enterprise_id_fkey"
+            columns: ["enterprise_id"]
+            isOneToOne: false
+            referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_room_shares: {
+        Row: {
+          access_token: string | null
+          can_download: boolean | null
+          created_at: string | null
+          enterprise_id: string
+          expires_at: string | null
+          id: string
+          investor_email: string | null
+          investor_name: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          can_download?: boolean | null
+          created_at?: string | null
+          enterprise_id: string
+          expires_at?: string | null
+          id?: string
+          investor_email?: string | null
+          investor_name?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          can_download?: boolean | null
+          created_at?: string | null
+          enterprise_id?: string
+          expires_at?: string | null
+          id?: string
+          investor_email?: string | null
+          investor_name?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_room_shares_enterprise_id_fkey"
+            columns: ["enterprise_id"]
+            isOneToOne: false
+            referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliverables: {
         Row: {
           ai_generated: boolean | null
