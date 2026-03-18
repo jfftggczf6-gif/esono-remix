@@ -55,106 +55,6 @@ export type Database = {
           },
         ]
       }
-      data_room_documents: {
-        Row: {
-          category: string
-          created_at: string | null
-          deliverable_type: string | null
-          enterprise_id: string
-          evidence_level: number | null
-          file_size: number | null
-          filename: string
-          id: string
-          is_generated: boolean | null
-          label: string
-          storage_path: string
-          updated_at: string | null
-          uploaded_by: string
-        }
-        Insert: {
-          category: string
-          created_at?: string | null
-          deliverable_type?: string | null
-          enterprise_id: string
-          evidence_level?: number | null
-          file_size?: number | null
-          filename: string
-          id?: string
-          is_generated?: boolean | null
-          label: string
-          storage_path: string
-          updated_at?: string | null
-          uploaded_by: string
-        }
-        Update: {
-          category?: string
-          created_at?: string | null
-          deliverable_type?: string | null
-          enterprise_id?: string
-          evidence_level?: number | null
-          file_size?: number | null
-          filename?: string
-          id?: string
-          is_generated?: boolean | null
-          label?: string
-          storage_path?: string
-          updated_at?: string | null
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "data_room_documents_enterprise_id_fkey"
-            columns: ["enterprise_id"]
-            isOneToOne: false
-            referencedRelation: "enterprises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      data_room_shares: {
-        Row: {
-          access_token: string | null
-          can_download: boolean | null
-          created_at: string | null
-          enterprise_id: string
-          expires_at: string | null
-          id: string
-          investor_email: string | null
-          investor_name: string | null
-          viewed_at: string | null
-        }
-        Insert: {
-          access_token?: string | null
-          can_download?: boolean | null
-          created_at?: string | null
-          enterprise_id: string
-          expires_at?: string | null
-          id?: string
-          investor_email?: string | null
-          investor_name?: string | null
-          viewed_at?: string | null
-        }
-        Update: {
-          access_token?: string | null
-          can_download?: boolean | null
-          created_at?: string | null
-          enterprise_id?: string
-          expires_at?: string | null
-          id?: string
-          investor_email?: string | null
-          investor_name?: string | null
-          viewed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "data_room_shares_enterprise_id_fkey"
-            columns: ["enterprise_id"]
-            isOneToOne: false
-            referencedRelation: "enterprises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       deliverables: {
         Row: {
           ai_generated: boolean | null
@@ -268,8 +168,6 @@ export type Database = {
           country: string | null
           created_at: string
           creation_date: string | null
-          data_room_enabled: boolean | null
-          data_room_slug: string | null
           description: string | null
           employees_count: number | null
           id: string
@@ -277,7 +175,6 @@ export type Database = {
           legal_form: string | null
           logo_url: string | null
           name: string
-          operating_mode: Database["public"]["Enums"]["operating_mode"] | null
           phase: string | null
           score_ir: number | null
           sector: string | null
@@ -294,8 +191,6 @@ export type Database = {
           country?: string | null
           created_at?: string
           creation_date?: string | null
-          data_room_enabled?: boolean | null
-          data_room_slug?: string | null
           description?: string | null
           employees_count?: number | null
           id?: string
@@ -303,7 +198,6 @@ export type Database = {
           legal_form?: string | null
           logo_url?: string | null
           name: string
-          operating_mode?: Database["public"]["Enums"]["operating_mode"] | null
           phase?: string | null
           score_ir?: number | null
           sector?: string | null
@@ -320,8 +214,6 @@ export type Database = {
           country?: string | null
           created_at?: string
           creation_date?: string | null
-          data_room_enabled?: boolean | null
-          data_room_slug?: string | null
           description?: string | null
           employees_count?: number | null
           id?: string
@@ -329,7 +221,6 @@ export type Database = {
           legal_form?: string | null
           logo_url?: string | null
           name?: string
-          operating_mode?: Database["public"]["Enums"]["operating_mode"] | null
           phase?: string | null
           score_ir?: number | null
           sector?: string | null
@@ -411,63 +302,6 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      programme_criteria: {
-        Row: {
-          country_filter: string[] | null
-          created_at: string | null
-          created_by: string
-          custom_criteria: Json | null
-          description: string | null
-          id: string
-          is_active: boolean | null
-          max_debt_ratio: number | null
-          max_score_ir: number | null
-          min_margin: number | null
-          min_revenue: number | null
-          min_score_ir: number | null
-          name: string
-          required_deliverables: string[] | null
-          sector_filter: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          country_filter?: string[] | null
-          created_at?: string | null
-          created_by: string
-          custom_criteria?: Json | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          max_debt_ratio?: number | null
-          max_score_ir?: number | null
-          min_margin?: number | null
-          min_revenue?: number | null
-          min_score_ir?: number | null
-          name: string
-          required_deliverables?: string[] | null
-          sector_filter?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          country_filter?: string[] | null
-          created_at?: string | null
-          created_by?: string
-          custom_criteria?: Json | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          max_debt_ratio?: number | null
-          max_score_ir?: number | null
-          min_margin?: number | null
-          min_revenue?: number | null
-          min_score_ir?: number | null
-          name?: string
-          required_deliverables?: string[] | null
-          sector_filter?: string[] | null
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -558,7 +392,6 @@ export type Database = {
         | "odd_analysis"
         | "plan_ovo_excel"
         | "odd_excel"
-        | "screening_report"
       module_code:
         | "bmc"
         | "sic"
@@ -569,7 +402,6 @@ export type Database = {
         | "business_plan"
         | "odd"
       module_status: "not_started" | "in_progress" | "completed"
-      operating_mode: "reconstruction" | "due_diligence"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -716,7 +548,6 @@ export const Constants = {
         "odd_analysis",
         "plan_ovo_excel",
         "odd_excel",
-        "screening_report",
       ],
       module_code: [
         "bmc",
@@ -729,7 +560,6 @@ export const Constants = {
         "odd",
       ],
       module_status: ["not_started", "in_progress", "completed"],
-      operating_mode: ["reconstruction", "due_diligence"],
     },
   },
 } as const

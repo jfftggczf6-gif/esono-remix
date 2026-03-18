@@ -15,16 +15,12 @@ import {
   Plus, Building2, Sparkles, Download,
   LogOut, Clock, CheckCircle2, Loader2,
   FolderPlus, Pencil, Trash2, TrendingUp,
-  FileText, BarChart3, Stethoscope, LayoutGrid, Globe, FileSpreadsheet, Target, Search
+  FileText, BarChart3, Stethoscope, LayoutGrid, Globe, FileSpreadsheet, Target
 } from 'lucide-react';
 import BmcViewer from './BmcViewer';
 import SicViewer from './SicViewer';
 import DeliverableViewer from './DeliverableViewer';
 import BusinessPlanPreview from './BusinessPlanPreview';
-
-import ReconstructionUploader from './ReconstructionUploader';
-import ScreeningReportViewer from './ScreeningReportViewer';
-import DataRoomManager from './DataRoomManager';
 import {
   MODULE_CONFIG, PIPELINE, MODULE_FN_MAP,
   type Enterprise, type Deliverable, type EnterpriseModule, type UploadedFile,
@@ -54,7 +50,6 @@ export default function EntrepreneurDashboard() {
   const [generating, setGenerating] = useState(false);
   const [generatingModule, setGeneratingModule] = useState<string | null>(null);
   const [generatingOvoPlan, setGeneratingOvoPlan] = useState(false);
-  const [generatingScreening, setGeneratingScreening] = useState(false);
   const [ovoDownloadUrl, setOvoDownloadUrl] = useState<string | null>(null);
   const [selectedModule, setSelectedModule] = useState<string>('business_plan');
   const [showEdit, setShowEdit] = useState(false);
@@ -819,35 +814,9 @@ export default function EntrepreneurDashboard() {
   const delivTypeMap: Record<string, string> = {
     bmc: 'bmc_analysis', sic: 'sic_analysis', inputs: 'inputs_data', framework: 'framework_data',
     diagnostic: 'diagnostic_data', plan_ovo: 'plan_ovo', business_plan: 'business_plan', odd: 'odd_analysis',
-    screening: 'screening_report',
   };
   const selectedDelivType = delivTypeMap[selectedModule];
   const selectedDeliv = selectedDelivType ? getDeliverable(selectedDelivType) : null;
-
-  const handleGenerateScreening = async () => {
-    if (!enterprise) return;
-    setGeneratingScreening(true);
-    try {
-      const token = await getValidAccessToken(authSession, navigate);
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-screening-report`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ enterprise_id: enterprise.id }),
-        }
-      );
-      if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Erreur'); }
-      const result = await response.json();
-      toast.success(`Screening terminé ! Score: ${result.score}/100`);
-      setSelectedModule('screening');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur de screening');
-    } finally {
-      setGeneratingScreening(false);
-    }
-  };
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
@@ -1091,16 +1060,6 @@ export default function EntrepreneurDashboard() {
           )}
           {uploading === 'extra' && <div className="mx-4 mb-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
 
-          {/* Reconstruction uploader — always visible */}
-          <div className="mx-4 my-3">
-            <ReconstructionUploader
-              enterpriseId={enterprise.id}
-              session={authSession}
-              navigate={navigate}
-              onComplete={fetchData}
-            />
-          </div>
-
           {/* Spacer */}
           <div className="flex-1" />
         </div>
@@ -1109,45 +1068,13 @@ export default function EntrepreneurDashboard() {
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Module title bar */}
           <div className="flex-none h-12 border-b border-border bg-card/50 flex items-center px-6 gap-3">
-            {selectedModule === 'screening' ? (
-              <>
-                <Search className="h-5 w-5 text-muted-foreground" />
-                <h1 className="font-display font-semibold text-base">Diagnostic & Screening</h1>
-              </>
-            ) : selectedModule === 'dataroom' ? (
-              <>
-                <FolderPlus className="h-5 w-5 text-muted-foreground" />
-                <h1 className="font-display font-semibold text-base">Data Room</h1>
-              </>
-            ) : selectedMod && (
+            {selectedMod && (
               <>
                 <selectedMod.icon className="h-5 w-5 text-muted-foreground" />
                 <h1 className="font-display font-semibold text-base">{selectedMod.title}</h1>
               </>
             )}
-            <div className="ml-auto flex gap-2">
-              <Button
-                variant={selectedModule === 'dataroom' ? 'default' : 'outline'}
-                size="sm"
-                className="gap-2 text-xs"
-                onClick={() => setSelectedModule('dataroom')}
-              >
-                <FolderPlus className="h-3.5 w-3.5" /> Data Room
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-xs"
-                onClick={() => { if (selectedModule === 'screening') { handleGenerateScreening(); } else { setSelectedModule('screening'); } }}
-                disabled={generatingScreening}
-              >
-                {generatingScreening ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Screening en cours…</>
-                ) : (
-                  <><Search className="h-3.5 w-3.5" /> {selectedModule === 'screening' ? 'Regénérer le screening' : '🔍 Screening'}</>
-                )}
-              </Button>
-            </div>
+            {/* Module-specific download handled via contextual bars below */}
           </div>
 
           {/* Scrollable content */}
@@ -1383,15 +1310,7 @@ export default function EntrepreneurDashboard() {
               </div>
             )}
 
-            {selectedModule === 'dataroom' && enterprise && user ? (
-              <div className="p-6">
-                <DataRoomManager enterpriseId={enterprise.id} userId={user.id} dataRoomSlug={(enterprise as any).data_room_slug || ''} />
-              </div>
-            ) : selectedModule === 'screening' && selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
-              <div className="p-6">
-                <ScreeningReportViewer data={selectedDeliv.data as Record<string, any>} />
-              </div>
-            ) : selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
+            {selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
               <div className="p-6">
                 {selectedModule === 'bmc' ? (
                   <BmcViewer data={selectedDeliv.data} />
