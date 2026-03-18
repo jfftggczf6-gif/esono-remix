@@ -29,6 +29,8 @@ import {
 } from '@/lib/dashboard-config';
 import { getValidAccessToken } from '@/lib/getValidAccessToken';
 import { runPipelineFromClient, getPipelineState, type PipelineState } from '@/lib/pipeline-runner';
+import ScreeningDashboard from './ScreeningDashboard';
+import ProgrammeCriteriaEditor from './ProgrammeCriteriaEditor';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
