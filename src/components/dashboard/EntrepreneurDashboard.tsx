@@ -21,6 +21,8 @@ import BmcViewer from './BmcViewer';
 import SicViewer from './SicViewer';
 import DeliverableViewer from './DeliverableViewer';
 import BusinessPlanPreview from './BusinessPlanPreview';
+import ModeSelectionModal from './ModeSelectionModal';
+import ReconstructionUploader from './ReconstructionUploader';
 import {
   MODULE_CONFIG, PIPELINE, MODULE_FN_MAP,
   type Enterprise, type Deliverable, type EnterpriseModule, type UploadedFile,
