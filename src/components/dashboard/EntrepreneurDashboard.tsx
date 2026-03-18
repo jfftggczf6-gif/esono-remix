@@ -21,7 +21,7 @@ import BmcViewer from './BmcViewer';
 import SicViewer from './SicViewer';
 import DeliverableViewer from './DeliverableViewer';
 import BusinessPlanPreview from './BusinessPlanPreview';
-import ModeSelectionModal from './ModeSelectionModal';
+
 import ReconstructionUploader from './ReconstructionUploader';
 import ScreeningReportViewer from './ScreeningReportViewer';
 import DataRoomManager from './DataRoomManager';
