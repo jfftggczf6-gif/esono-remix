@@ -1400,7 +1400,11 @@ export default function EntrepreneurDashboard() {
               </div>
             )}
 
-            {selectedModule === 'screening' && selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
+            {selectedModule === 'dataroom' && enterprise && user ? (
+              <div className="p-6">
+                <DataRoomManager enterpriseId={enterprise.id} userId={user.id} />
+              </div>
+            ) : selectedModule === 'screening' && selectedDeliv?.data && typeof selectedDeliv.data === 'object' ? (
               <div className="p-6">
                 <ScreeningReportViewer data={selectedDeliv.data as Record<string, any>} />
               </div>
