@@ -24,6 +24,7 @@ import BusinessPlanPreview from './BusinessPlanPreview';
 import ModeSelectionModal from './ModeSelectionModal';
 import ReconstructionUploader from './ReconstructionUploader';
 import ScreeningReportViewer from './ScreeningReportViewer';
+import DataRoomManager from './DataRoomManager';
 import {
   MODULE_CONFIG, PIPELINE, MODULE_FN_MAP,
   type Enterprise, type Deliverable, type EnterpriseModule, type UploadedFile,
