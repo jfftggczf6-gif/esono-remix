@@ -21,6 +21,8 @@ import BmcViewer from './BmcViewer';
 import SicViewer from './SicViewer';
 import DeliverableViewer from './DeliverableViewer';
 import BusinessPlanPreview from './BusinessPlanPreview';
+import ModeSelectionModal from './ModeSelectionModal';
+import ReconstructionUploader from './ReconstructionUploader';
 import {
   MODULE_CONFIG, PIPELINE, MODULE_FN_MAP,
   type Enterprise, type Deliverable, type EnterpriseModule, type UploadedFile,
@@ -828,6 +830,11 @@ export default function EntrepreneurDashboard() {
         <Button variant="ghost" size="icon" className="h-7 w-7 ml-1" onClick={openEditDialog}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
+        {(enterprise as any).operating_mode && (
+          <Badge variant="outline" className="text-[10px] ml-1">
+            {(enterprise as any).operating_mode === 'reconstruction' ? '🔧 Reconstruction' : '📁 Due Diligence'}
+          </Badge>
+        )}
         <div className="mr-auto" />
         <div className="flex items-center gap-4">
           <span className="text-sm text-foreground">
@@ -899,6 +906,14 @@ export default function EntrepreneurDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* ===== MODE SELECTION MODAL ===== */}
+      {enterprise && !(enterprise as any).operating_mode && (
+        <ModeSelectionModal
+          enterpriseId={enterprise.id}
+          open={true}
+          onModeSelected={fetchData}
+        />
+      )}
 
       <div className="flex-none bg-[hsl(222,47%,15%)]">
         <div className="h-12 flex items-center px-6 gap-6">
@@ -1059,6 +1074,18 @@ export default function EntrepreneurDashboard() {
             </div>
           )}
           {uploading === 'extra' && <div className="mx-4 mb-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
+
+          {/* Reconstruction uploader for reconstruction mode */}
+          {(enterprise as any).operating_mode === 'reconstruction' && (
+            <div className="mx-4 my-3">
+              <ReconstructionUploader
+                enterpriseId={enterprise.id}
+                session={authSession}
+                navigate={navigate}
+                onComplete={fetchData}
+              />
+            </div>
+          )}
 
           {/* Spacer */}
           <div className="flex-1" />
