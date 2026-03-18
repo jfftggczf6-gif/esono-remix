@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import {
   FolderOpen, Upload, Trash2, FileText, Shield, Users, BarChart3,
-  Globe, Briefcase, Copy, Link, Loader2, Star, Plus, Share2, Eye,
+  Globe, Briefcase, Copy, Link, Loader2, Star, Plus, Share2, Eye, AlertTriangle,
 } from 'lucide-react';
 
 const CATEGORIES = [
