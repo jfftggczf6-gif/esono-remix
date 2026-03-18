@@ -21,7 +21,7 @@ const CATEGORIES = [
   { id: 'other', label: 'Autres', icon: FileText, color: 'bg-muted text-muted-foreground', description: 'Documents divers' },
 ] as const;
 
-const EVIDENCE_LABELS = ['Non vérifié', 'Auto-déclaré', 'Document fourni', 'Certifié'];
+const _EVIDENCE_LABELS = ['Non vérifié', 'Auto-déclaré', 'Document fourni', 'Certifié'];
 
 interface DataRoomDoc {
   id: string;
